@@ -213,8 +213,29 @@ def summarize(item: dict, fixed_options: set[str]) -> str:
 
 
 def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
+    def play_alert_sound() -> None:
+        try:
+            winsound.PlaySound(
+                "SystemExclamation",
+                winsound.SND_ALIAS | winsound.SND_ASYNC,
+            )
+            return
+        except RuntimeError:
+            pass
+
+        try:
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+            return
+        except RuntimeError:
+            pass
+
+        try:
+            winsound.Beep(1200, 250)
+        except RuntimeError:
+            log("Sound alert unavailable on this system")
+
     for _ in range(3):
-        winsound.MessageBeep()
+        play_alert_sound()
         time.sleep(0.2)
     log(f"NEW_LISTINGS [{label}] {len(new_items)} found")
     for item in new_items:

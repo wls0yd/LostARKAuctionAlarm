@@ -3,3 +3,8 @@ __pycache__/
 .sisyphus/
 state.json
 watch.log
+
+# PyInstaller outputs
+build/
+dist/
+*.spec
