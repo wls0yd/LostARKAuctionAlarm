@@ -131,16 +131,51 @@ def load_state() -> dict:
 
 
 def save_state(signatures_by_monitor: dict[str, set[str]]) -> None:
+    state = load_state()
+    app_settings = state.get("app_settings") if isinstance(state, dict) else None
+    payload = {
+        "seen_by_monitor": {
+            key: sorted(values) for key, values in signatures_by_monitor.items()
+        }
+    }
+    if isinstance(app_settings, dict):
+        payload["app_settings"] = app_settings
+
     STATE_PATH.write_text(
         json.dumps(
-            {
-                "seen_by_monitor": {
-                    key: sorted(values) for key, values in signatures_by_monitor.items()
-                }
-            },
+            payload,
             ensure_ascii=False,
             indent=2,
         ),
+        encoding="utf-8",
+    )
+
+
+def load_app_settings() -> dict:
+    state = load_state()
+    settings = state.get("app_settings", {}) if isinstance(state, dict) else {}
+    if not isinstance(settings, dict):
+        settings = {}
+
+    saved_interval = settings.get("poll_seconds", POLL_SECONDS)
+    if not isinstance(saved_interval, int) or saved_interval <= 0:
+        saved_interval = POLL_SECONDS
+
+    return {
+        "token": str(settings.get("token", "")).strip(),
+        "poll_seconds": saved_interval,
+    }
+
+
+def save_app_settings(token: str, poll_seconds: int) -> None:
+    state = load_state()
+    state["app_settings"] = {
+        "token": token.strip(),
+        "poll_seconds": poll_seconds,
+    }
+    state.setdefault("seen_by_monitor", {})
+    STATE_PATH.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
@@ -351,8 +386,12 @@ class WatcherPopup:
         self.root.geometry("420x240")
         self.root.resizable(False, False)
 
-        self.token_var = tk.StringVar(value=TOKEN)
-        self.interval_var = tk.IntVar(value=POLL_SECONDS)
+        app_settings = load_app_settings()
+        initial_token = TOKEN if TOKEN else app_settings["token"]
+        initial_interval = app_settings["poll_seconds"]
+
+        self.token_var = tk.StringVar(value=initial_token)
+        self.interval_var = tk.IntVar(value=initial_interval)
         self.status_var = tk.StringVar(value="대기 중")
         self.monitor_enabled: dict[str, tk.BooleanVar] = {
             monitor["key"]: tk.BooleanVar(value=True) for monitor in DEFAULT_MONITORS
@@ -473,6 +512,7 @@ class WatcherPopup:
 
             self.token_var.set(token_var.get().strip())
             self.interval_var.set(interval)
+            save_app_settings(self.token_var.get(), interval)
             dialog.destroy()
 
         button_row = tk.Frame(container)
