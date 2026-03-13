@@ -38,6 +38,28 @@ DEFAULT_MONITORS = [
         },
     },
     {
+        "key": "necklace_brand_gauge",
+        "label": "목걸이 낙인력/게이지",
+        "fixed_options": {
+            "낙인력",
+            "세레나데, 신성, 조화 게이지 획득량 증가",
+            "세레나데, 신앙, 조화 게이지 획득량",
+        },
+        "query": {
+            "ItemTier": 4,
+            "ItemGrade": "고대",
+            "CategoryCode": 200010,
+            "PageNo": 1,
+            "Sort": "BUY_PRICE",
+            "SortCondition": "ASC",
+            "EtcOptions": [
+                {"FirstOption": 7, "SecondOption": 44, "MinValue": 800, "MaxValue": 800},
+                {"FirstOption": 7, "SecondOption": 43, "MinValue": 600, "MaxValue": 600},
+                {"FirstOption": 1, "SecondOption": 11, "MinValue": 17500, "MaxValue": 99999},
+            ],
+        },
+    },
+    {
         "key": "earring_attack",
         "label": "귀걸이 공퍼/무공퍼",
         "fixed_options": {"공격력", "무기 공격력"},
@@ -429,7 +451,7 @@ class WatcherPopup:
         container = tk.Frame(dialog, padx=12, pady=12)
         container.pack(fill="both", expand=True)
 
-        tk.Label(container, text="LOSTARK API 키 (Bearer 없이 입력 가능)", font=("Malgun Gothic", 9)).pack(anchor="w")
+        tk.Label(container, text="LOSTARK API 키", font=("Malgun Gothic", 9)).pack(anchor="w")
         token_entry = tk.Entry(container, textvariable=token_var, width=70)
         token_entry.pack(fill="x", pady=(4, 10))
 
