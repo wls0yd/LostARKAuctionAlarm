@@ -55,7 +55,7 @@ DEFAULT_MONITORS = [
             "EtcOptions": [
                 {"FirstOption": 7, "SecondOption": 44, "MinValue": 800, "MaxValue": 800},
                 {"FirstOption": 7, "SecondOption": 43, "MinValue": 600, "MaxValue": 600},
-                {"FirstOption": 1, "SecondOption": 11, "MinValue": 17500, "MaxValue": 99999},
+                {"FirstOption": 1, "SecondOption": 11, "MinValue": 17300, "MaxValue": 99999},
             ],
         },
     },
