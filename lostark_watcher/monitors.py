@@ -151,6 +151,41 @@ DEFAULT_MONITORS = [
             },
         ],
     },
+    {
+        "key": "ring_party_buff",
+        "label": "반지 아공강/아피강",
+        "fixed_options": {"아군 공격력 강화 효과", "아군 피해량 강화 효과"},
+        "query": {
+            "ItemTier": 4,
+            "ItemGrade": "고대",
+            "CategoryCode": 200030,
+            "PageNo": 1,
+            "Sort": "BUY_PRICE",
+            "SortCondition": "ASC",
+        },
+        "custom_values": [
+            {
+                "id": "option_1",
+                "label": "아공강 수치",
+                "default": 500,
+                "preset_levels": level_options(5, 3, 1.35),
+                "query_option": {"FirstOption": 7, "SecondOption": 47, "match": "exact"},
+            },
+            {
+                "id": "option_2",
+                "label": "아피강 수치",
+                "default": 750,
+                "preset_levels": level_options(7.5, 4.5, 2),
+                "query_option": {"FirstOption": 7, "SecondOption": 48, "match": "exact"},
+            },
+            {
+                "id": "quality_min",
+                "label": "최소 품질",
+                "default": 12500,
+                "query_option": {"FirstOption": 1, "SecondOption": 11, "match": "minimum"},
+            },
+        ],
+    },
 ]
 
 
