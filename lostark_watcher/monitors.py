@@ -1,3 +1,11 @@
+def level_options(high: float, medium: float, low: float) -> list[dict[str, int | str]]:
+    return [
+        {"label": f"상 ({high:g})", "value": int(high * 100)},
+        {"label": f"중 ({medium:g})", "value": int(medium * 100)},
+        {"label": f"하 ({low:g})", "value": int(low * 100)},
+    ]
+
+
 DEFAULT_MONITORS = [
     {
         "key": "necklace_damage",
@@ -16,12 +24,14 @@ DEFAULT_MONITORS = [
                 "id": "option_1",
                 "label": "적주피 수치",
                 "default": 200,
+                "preset_levels": level_options(2, 1.2, 0.55),
                 "query_option": {"FirstOption": 7, "SecondOption": 42, "match": "exact"},
             },
             {
                 "id": "option_2",
                 "label": "추피 수치",
                 "default": 260,
+                "preset_levels": level_options(2.6, 1.6, 0.6),
                 "query_option": {"FirstOption": 7, "SecondOption": 41, "match": "exact"},
             },
             {
@@ -53,12 +63,14 @@ DEFAULT_MONITORS = [
                 "id": "option_1",
                 "label": "낙인력 수치",
                 "default": 800,
+                "preset_levels": level_options(8, 4.8, 2.15),
                 "query_option": {"FirstOption": 7, "SecondOption": 44, "match": "exact"},
             },
             {
                 "id": "option_2",
                 "label": "게이지 수치",
                 "default": 600,
+                "preset_levels": level_options(6, 3.6, 1.6),
                 "query_option": {"FirstOption": 7, "SecondOption": 43, "match": "exact"},
             },
             {
@@ -86,12 +98,14 @@ DEFAULT_MONITORS = [
                 "id": "option_1",
                 "label": "공퍼 수치",
                 "default": 155,
+                "preset_levels": level_options(1.55, 0.95, 0.4),
                 "query_option": {"FirstOption": 7, "SecondOption": 45, "match": "exact"},
             },
             {
                 "id": "option_2",
                 "label": "무공퍼 수치",
                 "default": 300,
+                "preset_levels": level_options(3, 1.8, 0.8),
                 "query_option": {"FirstOption": 7, "SecondOption": 46, "match": "exact"},
             },
             {
@@ -116,16 +130,18 @@ DEFAULT_MONITORS = [
         },
         "custom_values": [
             {
-                "id": "option_1",
-                "label": "치적 수치",
-                "default": 155,
-                "query_option": {"FirstOption": 7, "SecondOption": 49, "match": "exact"},
-            },
-            {
                 "id": "option_2",
                 "label": "치피 수치",
                 "default": 400,
+                "preset_levels": level_options(4, 2.4, 1.1),
                 "query_option": {"FirstOption": 7, "SecondOption": 50, "match": "exact"},
+            },
+            {
+                "id": "option_1",
+                "label": "치적 수치",
+                "default": 155,
+                "preset_levels": level_options(1.55, 0.95, 0.4),
+                "query_option": {"FirstOption": 7, "SecondOption": 49, "match": "exact"},
             },
             {
                 "id": "quality_min",

@@ -252,6 +252,21 @@ class WatcherPopup:
         dialog.transient(self.root)
         dialog.grab_set()
 
+        def preset_label_for_value(field: dict, value: int) -> str:
+            for preset in field.get("preset_levels", []):
+                if preset["value"] == value:
+                    return str(preset["label"])
+            preset_levels = field.get("preset_levels", [])
+            if preset_levels:
+                return str(preset_levels[0]["label"])
+            return str(field["default"])
+
+        def preset_value_for_label(field: dict, label: str) -> int | None:
+            for preset in field.get("preset_levels", []):
+                if preset["label"] == label:
+                    return int(preset["value"])
+            return None
+
         draft_vars = {
             monitor["key"]: tk.BooleanVar(value=self.monitor_enabled[monitor["key"]].get())
             for monitor in DEFAULT_MONITORS
@@ -259,7 +274,14 @@ class WatcherPopup:
         draft_value_vars: dict[str, dict[str, tk.StringVar]] = {
             monitor["key"]: {
                 field["id"]: tk.StringVar(
-                    value=str(self.monitor_values[monitor["key"]][field["id"]])
+                    value=(
+                        preset_label_for_value(
+                            field,
+                            self.monitor_values[monitor["key"]][field["id"]],
+                        )
+                        if field.get("preset_levels")
+                        else str(self.monitor_values[monitor["key"]][field["id"]])
+                    )
                 )
                 for field in monitor.get("custom_values", [])
             }
@@ -329,11 +351,19 @@ class WatcherPopup:
                     padx=(0, 10),
                     pady=2,
                 )
-                tk.Entry(
-                    section,
-                    textvariable=draft_value_vars[monitor["key"]][field["id"]],
-                    width=18,
-                ).grid(row=row_index, column=1, sticky="w", pady=2)
+                if field.get("preset_levels"):
+                    preset_labels = [preset["label"] for preset in field["preset_levels"]]
+                    tk.OptionMenu(
+                        section,
+                        draft_value_vars[monitor["key"]][field["id"]],
+                        *preset_labels,
+                    ).grid(row=row_index, column=1, sticky="w", pady=2)
+                else:
+                    tk.Entry(
+                        section,
+                        textvariable=draft_value_vars[monitor["key"]][field["id"]],
+                        width=18,
+                    ).grid(row=row_index, column=1, sticky="w", pady=2)
 
         def save() -> None:
             if not any(var.get() for var in draft_vars.values()):
@@ -344,20 +374,29 @@ class WatcherPopup:
             for monitor in DEFAULT_MONITORS:
                 for field in monitor.get("custom_values", []):
                     raw_value = draft_value_vars[monitor["key"]][field["id"]].get().strip()
-                    try:
-                        value = int(raw_value)
-                    except ValueError:
-                        messagebox.showerror(
-                            "입력 오류",
-                            f"{monitor['label']}의 {field['label']}은 숫자로 입력해주세요.",
-                        )
-                        return
-                    if value < 0:
-                        messagebox.showerror(
-                            "입력 오류",
-                            f"{monitor['label']}의 {field['label']}은 0 이상이어야 합니다.",
-                        )
-                        return
+                    if field.get("preset_levels"):
+                        value = preset_value_for_label(field, raw_value)
+                        if value is None:
+                            messagebox.showerror(
+                                "입력 오류",
+                                f"{monitor['label']}의 {field['label']}은 상, 중, 하 중에서 선택해주세요.",
+                            )
+                            return
+                    else:
+                        try:
+                            value = int(raw_value)
+                        except ValueError:
+                            messagebox.showerror(
+                                "입력 오류",
+                                f"{monitor['label']}의 {field['label']}은 숫자로 입력해주세요.",
+                            )
+                            return
+                        if value < 0:
+                            messagebox.showerror(
+                                "입력 오류",
+                                f"{monitor['label']}의 {field['label']}은 0 이상이어야 합니다.",
+                            )
+                            return
                     resolved_monitor_values[monitor["key"]][field["id"]] = value
 
             for key, var in draft_vars.items():
