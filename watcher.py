@@ -978,20 +978,13 @@ class WatcherPopup:
             canvas.itemconfigure(canvas_window, width=_event.width)
 
         def on_mousewheel(event: tk.Event) -> None:
-            if event.delta == 0:
+            if event.delta == 0 or not canvas.winfo_exists():
                 return
             canvas.yview_scroll(int(-event.delta / 120), "units")
 
         canvas.bind("<Configure>", resize_canvas_content)
-
-        def bind_mousewheel(_event: tk.Event) -> None:
-            canvas.bind_all("<MouseWheel>", on_mousewheel)
-
-        def unbind_mousewheel(_event: tk.Event) -> None:
-            canvas.unbind_all("<MouseWheel>")
-
-        dialog.bind("<Enter>", bind_mousewheel)
-        dialog.bind("<Leave>", unbind_mousewheel)
+        for widget in (canvas, sections_container):
+            widget.bind("<MouseWheel>", on_mousewheel)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
