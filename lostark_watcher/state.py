@@ -2,7 +2,7 @@ import json
 import os
 import threading
 
-from .monitors import merge_monitor_values
+from .monitors import merge_monitor_enabled, merge_monitor_values
 from .runtime_context import POLL_SECONDS, STATE_PATH
 
 STATE_LOCK = threading.RLock()
@@ -53,11 +53,16 @@ def load_app_settings() -> dict:
     if not isinstance(saved_monitor_values, dict):
         saved_monitor_values = {}
 
+    saved_monitor_enabled = settings.get("monitor_enabled", {})
+    if not isinstance(saved_monitor_enabled, dict):
+        saved_monitor_enabled = {}
+
     return {
         "token": str(settings.get("token", "")).strip(),
         "poll_seconds": saved_interval,
         "installed_exe_blob_sha": str(settings.get("installed_exe_blob_sha", "")).strip(),
         "monitor_values": merge_monitor_values(saved_monitor_values),
+        "monitor_enabled": merge_monitor_enabled(saved_monitor_enabled),
     }
 
 
@@ -65,6 +70,7 @@ def save_app_settings(
     token: str,
     poll_seconds: int,
     monitor_values: dict[str, dict[str, int]] | None = None,
+    monitor_enabled: dict[str, bool] | None = None,
 ) -> None:
     with STATE_LOCK:
         state = load_state()
@@ -77,12 +83,18 @@ def save_app_settings(
             if monitor_values is not None
             else existing_settings.get("monitor_values", {})
         )
+        resolved_monitor_enabled = merge_monitor_enabled(
+            monitor_enabled
+            if monitor_enabled is not None
+            else existing_settings.get("monitor_enabled", {})
+        )
 
         existing_settings.update(
             {
                 "token": token.strip(),
                 "poll_seconds": poll_seconds,
                 "monitor_values": resolved_monitor_values,
+                "monitor_enabled": resolved_monitor_enabled,
             }
         )
         state["app_settings"] = existing_settings

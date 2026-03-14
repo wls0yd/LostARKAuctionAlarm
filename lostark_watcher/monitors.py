@@ -198,6 +198,20 @@ def default_monitor_values() -> dict[str, dict[str, int]]:
     }
 
 
+def default_monitor_enabled() -> dict[str, bool]:
+    return {monitor["key"]: True for monitor in DEFAULT_MONITORS}
+
+
+def merge_monitor_enabled(saved_enabled: dict) -> dict[str, bool]:
+    merged_enabled = default_monitor_enabled()
+    for monitor in DEFAULT_MONITORS:
+        monitor_key = monitor["key"]
+        raw_value = saved_enabled.get(monitor_key)
+        if isinstance(raw_value, bool):
+            merged_enabled[monitor_key] = raw_value
+    return merged_enabled
+
+
 def merge_monitor_values(saved_values: dict) -> dict[str, dict[str, int]]:
     merged_values = default_monitor_values()
     for monitor in DEFAULT_MONITORS:

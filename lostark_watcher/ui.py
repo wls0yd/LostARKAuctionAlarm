@@ -44,7 +44,10 @@ class WatcherPopup:
         self.status_var = tk.StringVar(value="대기 중")
         self.monitor_values = app_settings["monitor_values"]
         self.monitor_enabled: dict[str, tk.BooleanVar] = {
-            monitor["key"]: tk.BooleanVar(value=True) for monitor in DEFAULT_MONITORS
+            monitor["key"]: tk.BooleanVar(
+                value=app_settings["monitor_enabled"][monitor["key"]]
+            )
+            for monitor in DEFAULT_MONITORS
         }
 
         self.worker_thread: threading.Thread | None = None
@@ -233,7 +236,15 @@ class WatcherPopup:
 
             self.token_var.set(token_var.get().strip())
             self.interval_var.set(interval)
-            save_app_settings(self.token_var.get(), interval, self.monitor_values)
+            save_app_settings(
+                self.token_var.get(),
+                interval,
+                self.monitor_values,
+                {
+                    key: var.get()
+                    for key, var in self.monitor_enabled.items()
+                },
+            )
             dialog.destroy()
 
         button_row = tk.Frame(container)
@@ -406,6 +417,7 @@ class WatcherPopup:
                 self.token_var.get(),
                 self.interval_var.get(),
                 self.monitor_values,
+                {key: var.get() for key, var in self.monitor_enabled.items()},
             )
             dialog.destroy()
 

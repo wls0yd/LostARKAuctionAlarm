@@ -220,10 +220,15 @@ def run_cli_watcher() -> int:
     stop_event = threading.Event()
     app_settings = load_app_settings()
     token = TOKEN if TOKEN else app_settings["token"]
+    monitors = [
+        monitor
+        for monitor in build_monitor_runtime_config(app_settings["monitor_values"])
+        if app_settings["monitor_enabled"].get(monitor["key"], True)
+    ]
     run_watcher_loop(
         stop_event,
         normalize_token(token),
         app_settings["poll_seconds"],
-        build_monitor_runtime_config(app_settings["monitor_values"]),
+        monitors,
     )
     return 0
