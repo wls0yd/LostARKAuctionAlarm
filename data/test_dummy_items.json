@@ -1,0 +1,70 @@
+{
+  "monitor": {
+    "key": "necklace_damage",
+    "label": "목걸이 적주피/추피",
+    "fixed_options": [
+      "적에게 주는 피해 증가",
+      "추가 피해"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200010,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC",
+      "EtcOptions": [
+        {
+          "FirstOption": 7,
+          "SecondOption": 42,
+          "MinValue": 200,
+          "MaxValue": 200
+        },
+        {
+          "FirstOption": 7,
+          "SecondOption": 41,
+          "MinValue": 260,
+          "MaxValue": 260
+        },
+        {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "MinValue": 17500,
+          "MaxValue": 99999
+        }
+      ]
+    }
+  },
+  "items": [
+    {
+      "Name": "고대 목걸이",
+      "GradeQuality": 95,
+      "AuctionInfo": {
+        "BuyPrice": 185000,
+        "TradeAllowCount": 2,
+        "UpgradeLevel": 3,
+        "EndDate": "2026-03-27T23:59:59"
+      },
+      "Options": [
+        {
+          "Type": "STAT",
+          "OptionName": "힘",
+          "Value": 8123,
+          "IsValuePercentage": false
+        },
+        {
+          "Type": "ACCESSORY_UPGRADE",
+          "OptionName": "적에게 주는 피해 증가",
+          "Value": 2.4,
+          "IsValuePercentage": true
+        },
+        {
+          "Type": "ACCESSORY_UPGRADE",
+          "OptionName": "추가 피해",
+          "Value": 3.6,
+          "IsValuePercentage": true
+        }
+      ]
+    }
+  ]
+}

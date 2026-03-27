@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import threading
@@ -8,11 +9,12 @@ from tkinter import scrolledtext
 from urllib import error
 
 from .app_logging import log
-from .core import is_valid_token, normalize_token, run_watcher_loop
+from .core import is_valid_token, normalize_token, run_watcher_loop, summarize
 from .monitors import DEFAULT_MONITORS, build_monitor_runtime_config, default_monitor_values
 from .runtime_context import (
     DEFAULT_UPDATE_EXE_PATH,
     DEFAULT_UPDATE_REPO,
+    TEST_DUMMY_ITEMS_PATH,
     LOG_PATH,
     TOKEN,
     is_frozen_executable,
@@ -29,6 +31,77 @@ from .updater import (
 
 
 class WatcherPopup:
+    DEFAULT_TEST_DUMMY_ITEMS = {
+        "monitor": {
+            "key": "necklace_damage",
+            "label": "목걸이 적주피/추피",
+            "fixed_options": [
+                "적에게 주는 피해 증가",
+                "추가 피해",
+            ],
+            "query": {
+                "ItemTier": 4,
+                "ItemGrade": "고대",
+                "CategoryCode": 200010,
+                "PageNo": 1,
+                "Sort": "BUY_PRICE",
+                "SortCondition": "ASC",
+                "EtcOptions": [
+                    {
+                        "FirstOption": 7,
+                        "SecondOption": 42,
+                        "MinValue": 200,
+                        "MaxValue": 200,
+                    },
+                    {
+                        "FirstOption": 7,
+                        "SecondOption": 41,
+                        "MinValue": 260,
+                        "MaxValue": 260,
+                    },
+                    {
+                        "FirstOption": 1,
+                        "SecondOption": 11,
+                        "MinValue": 17500,
+                        "MaxValue": 99999,
+                    },
+                ],
+            },
+        },
+        "items": [
+            {
+                "Name": "고대 목걸이",
+                "GradeQuality": 95,
+                "AuctionInfo": {
+                    "BuyPrice": 185000,
+                    "TradeAllowCount": 2,
+                    "UpgradeLevel": 3,
+                    "EndDate": "2026-03-27T23:59:59",
+                },
+                "Options": [
+                    {
+                        "Type": "STAT",
+                        "OptionName": "힘",
+                        "Value": 8123,
+                        "IsValuePercentage": False,
+                    },
+                    {
+                        "Type": "ACCESSORY_UPGRADE",
+                        "OptionName": "추가 피해",
+                        "Value": 2.4,
+                        "IsValuePercentage": True,
+                    },
+                    {
+                        "Type": "ACCESSORY_UPGRADE",
+                        "OptionName": "치명타 피해",
+                        "Value": 3.6,
+                        "IsValuePercentage": True,
+                    },
+                ],
+            }
+        ],
+    }
+
     def __init__(self) -> None:
         self.root = tk.Tk()
         self.root.title("LostArkWatcher 팝업")
@@ -451,9 +524,74 @@ class WatcherPopup:
             state="disabled",
         )
         self.log_text.pack(fill="both", expand=True, padx=10, pady=10)
+        self.log_window.bind("<Control-t>", self._emit_test_listing_log)
+        self.log_text.bind("<Control-t>", self._emit_test_listing_log)
 
         self.log_window.protocol("WM_DELETE_WINDOW", self._close_log_window)
         self._refresh_log_window()
+
+    def _emit_test_listing_log(self, _event: tk.Event) -> str:
+        payload = self._load_or_init_test_dummy_items()
+        monitor_payload = payload.get("monitor", {})
+        if not isinstance(monitor_payload, dict):
+            monitor_payload = {}
+
+        label = str(
+            monitor_payload.get("label", payload.get("label", "Ctrl+T"))
+        ).strip() or "Ctrl+T"
+        fixed_options = {
+            str(option_name)
+            for option_name in monitor_payload.get(
+                "fixed_options",
+                payload.get("fixed_options", []),
+            )
+            if isinstance(option_name, str) and option_name.strip()
+        }
+        items = payload.get("items", [])
+        if not isinstance(items, list):
+            items = []
+
+        log(f"TEST_DUMMY_LISTING [{label}] {len(items)} found")
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            log("  " + summarize(item, fixed_options))
+
+        self._refresh_log_window()
+        return "break"
+
+    def _load_or_init_test_dummy_items(self) -> dict:
+        default_payload = self.DEFAULT_TEST_DUMMY_ITEMS
+        TEST_DUMMY_ITEMS_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        if not TEST_DUMMY_ITEMS_PATH.exists():
+            TEST_DUMMY_ITEMS_PATH.write_text(
+                json.dumps(default_payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            log(f"Test dummy data initialized: {TEST_DUMMY_ITEMS_PATH}")
+            return default_payload
+
+        try:
+            loaded = json.loads(TEST_DUMMY_ITEMS_PATH.read_text(encoding="utf-8"))
+        except Exception as exc:
+            log(f"Test dummy data load failed: {exc}")
+            TEST_DUMMY_ITEMS_PATH.write_text(
+                json.dumps(default_payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            log(f"Test dummy data reset to default: {TEST_DUMMY_ITEMS_PATH}")
+            return default_payload
+
+        if not isinstance(loaded, dict):
+            TEST_DUMMY_ITEMS_PATH.write_text(
+                json.dumps(default_payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            log(f"Test dummy data format invalid. Reset: {TEST_DUMMY_ITEMS_PATH}")
+            return default_payload
+
+        return loaded
 
     def _close_log_window(self) -> None:
         if self.log_window is None:
