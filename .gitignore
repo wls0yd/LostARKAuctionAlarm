@@ -7,4 +7,5 @@ data/state_from_dist.json
 
 # PyInstaller outputs
 build/
-exe/*.exe
+exe/
+*.exe
