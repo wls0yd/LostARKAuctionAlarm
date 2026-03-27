@@ -1,102 +1,257 @@
-import json
-
-from .runtime_context import DATA_DIR, MONITORS_PATH
-
-
-def _load_default_monitors() -> list[dict]:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    payload = json.loads(MONITORS_PATH.read_text(encoding="utf-8"))
-    if not isinstance(payload, list):
-        raise ValueError("Monitor data must be a list")
-
-    normalized: list[dict] = []
-    for raw_monitor in payload:
-        if not isinstance(raw_monitor, dict):
-            continue
-
-        monitor = dict(raw_monitor)
-        raw_fixed_options = monitor.get("fixed_options", [])
-        if isinstance(raw_fixed_options, list):
-            monitor["fixed_options"] = {str(name) for name in raw_fixed_options}
-        else:
-            monitor["fixed_options"] = set()
-
-        normalized.append(monitor)
-
-    return normalized
+from .metadata.accessory_metadata import (
+    DEFAULT_MONITOR_SLOTS,
+    MAX_MONITOR_SLOTS,
+    OPTION_DEFINITIONS,
+    PART_DEFINITIONS,
+    PART_OPTION_KEYS,
+    QUALITY_VALUE_OPTIONS,
+)
 
 
-DEFAULT_MONITORS = _load_default_monitors()
+def clamp_monitor_slots(raw_slots: int | None) -> int:
+    if not isinstance(raw_slots, int):
+        return DEFAULT_MONITOR_SLOTS
+    if raw_slots < 1:
+        return 1
+    if raw_slots > MAX_MONITOR_SLOTS:
+        return MAX_MONITOR_SLOTS
+    return raw_slots
 
 
-def default_monitor_values() -> dict[str, dict[str, int]]:
+def _default_option_key(part_key: str, skip_keys: set[str] | None = None) -> str:
+    excluded = skip_keys if isinstance(skip_keys, set) else set()
+    options = PART_OPTION_KEYS.get(part_key, [])
+    for option_key in options:
+        if option_key not in excluded:
+            return option_key
+    raise ValueError(f"No option definition found for part: {part_key}")
+
+
+def _default_option_value(part_key: str, option_key: str) -> int:
+    if option_key not in PART_OPTION_KEYS[part_key]:
+        raise ValueError(f"Invalid option '{option_key}' for part '{part_key}'")
+    values = OPTION_DEFINITIONS[option_key]["values"]
+    return int(values[0])
+
+
+def _default_quality_value(part_key: str) -> int:
+    _ = part_key
+    return int(QUALITY_VALUE_OPTIONS["none"]["value"])
+
+
+def default_custom_monitor(slot_index: int) -> dict:
+    part_key = "necklace"
+    option_1 = _default_option_key(part_key)
+    option_2 = _default_option_key(part_key, skip_keys={option_1})
+    option_3 = _default_option_key(part_key, skip_keys={option_1, option_2})
     return {
-        monitor["key"]: {
-            field["id"]: field["default"] for field in monitor.get("custom_values", [])
-        }
-        for monitor in DEFAULT_MONITORS
+        "id": f"slot_{slot_index + 1}",
+        "enabled": True,
+        "part": part_key,
+        "option_1": option_1,
+        "option_2": option_2,
+        "option_3": option_3,
+        "value_1": _default_option_value(part_key, option_1),
+        "value_2": _default_option_value(part_key, option_2),
+        "value_3": _default_option_value(part_key, option_3),
+        "quality_value": _default_quality_value(part_key),
     }
 
 
-def default_monitor_enabled() -> dict[str, bool]:
-    return {monitor["key"]: True for monitor in DEFAULT_MONITORS}
+def default_custom_monitors(slot_count: int | None = None) -> list[dict]:
+    resolved_count = clamp_monitor_slots(slot_count)
+    return [default_custom_monitor(index) for index in range(resolved_count)]
 
 
-def merge_monitor_enabled(saved_enabled: dict) -> dict[str, bool]:
-    merged_enabled = default_monitor_enabled()
-    for monitor in DEFAULT_MONITORS:
-        monitor_key = monitor["key"]
-        raw_value = saved_enabled.get(monitor_key)
-        if isinstance(raw_value, bool):
-            merged_enabled[monitor_key] = raw_value
-    return merged_enabled
+def _sanitize_part_key(part_key: str) -> str:
+    if part_key in PART_DEFINITIONS:
+        return part_key
+    return "necklace"
 
 
-def merge_monitor_values(saved_values: dict) -> dict[str, dict[str, int]]:
-    merged_values = default_monitor_values()
-    for monitor in DEFAULT_MONITORS:
-        monitor_key = monitor["key"]
-        monitor_saved_values = saved_values.get(monitor_key, {})
-        if not isinstance(monitor_saved_values, dict):
-            continue
-        for field in monitor.get("custom_values", []):
-            raw_value = monitor_saved_values.get(field["id"])
-            if isinstance(raw_value, int) and raw_value >= 0:
-                merged_values[monitor_key][field["id"]] = raw_value
-    return merged_values
+def _sanitize_option_key(part_key: str, option_key: str, skip_keys: set[str] | None = None) -> str:
+    excluded = skip_keys if isinstance(skip_keys, set) else set()
+    if option_key == "none":
+        return "none"
+    if option_key in PART_OPTION_KEYS[part_key] and option_key not in excluded:
+        return option_key
+    return _default_option_key(part_key, skip_keys=excluded)
 
 
-def build_monitor_query(monitor: dict, monitor_values: dict[str, int] | None = None) -> dict:
-    query = dict(monitor["query"])
-    resolved_values = monitor_values if isinstance(monitor_values, dict) else {}
-    etc_options = []
-    for field in monitor.get("custom_values", []):
-        value = resolved_values.get(field["id"], field["default"])
-        option = dict(field["query_option"])
-        match_type = option.pop("match", "exact")
-        if match_type == "minimum":
-            option["MinValue"] = value
-            option["MaxValue"] = 99999
+def _sanitize_option_value(part_key: str, option_key: str, raw_value: object) -> int:
+    if option_key == "none":
+        return 0
+    if option_key not in PART_OPTION_KEYS[part_key]:
+        return _default_option_value(part_key, _default_option_key(part_key))
+    values = OPTION_DEFINITIONS[option_key]["values"]
+    if isinstance(raw_value, int) and raw_value in values:
+        return raw_value
+    return int(values[0])
+
+
+def _sanitize_quality_value(part_key: str, raw_value: object) -> int:
+    _ = part_key
+    if isinstance(raw_value, int) and raw_value >= 0:
+        return int(raw_value)
+    return _default_quality_value(part_key)
+
+
+def normalize_custom_monitor(raw_monitor: dict, fallback_id: str) -> dict:
+    monitor = raw_monitor if isinstance(raw_monitor, dict) else {}
+    monitor_id = str(monitor.get("id", fallback_id)).strip() or fallback_id
+    part_key = _sanitize_part_key(str(monitor.get("part", "necklace")))
+    option_1 = _sanitize_option_key(
+        part_key,
+        str(monitor.get("option_1", monitor.get("special_option_1", ""))),
+    )
+    option_2 = _sanitize_option_key(
+        part_key,
+        str(monitor.get("option_2", monitor.get("special_option_2", ""))),
+        skip_keys={option_1},
+    )
+    option_3 = _sanitize_option_key(
+        part_key,
+        str(monitor.get("option_3", "")),
+        skip_keys={option_1, option_2},
+    )
+
+    raw_quality_value = monitor.get("quality_value")
+    if raw_quality_value is None:
+        common_option = str(monitor.get("common_option", "quality_min"))
+        if common_option == "none":
+            raw_quality_value = 0
         else:
-            option["MinValue"] = value
-            option["MaxValue"] = value
-        etc_options.append(option)
-    query["EtcOptions"] = etc_options
-    return query
+            raw_quality_value = monitor.get("common_value")
+
+    return {
+        "id": monitor_id,
+        "enabled": bool(monitor.get("enabled", True)),
+        "part": part_key,
+        "option_1": option_1,
+        "option_2": option_2,
+        "option_3": option_3,
+        "value_1": _sanitize_option_value(
+            part_key,
+            option_1,
+            monitor.get("value_1", monitor.get("special_value_1")),
+        ),
+        "value_2": _sanitize_option_value(
+            part_key,
+            option_2,
+            monitor.get("value_2", monitor.get("special_value_2")),
+        ),
+        "value_3": _sanitize_option_value(
+            part_key,
+            option_3,
+            monitor.get("value_3"),
+        ),
+        "quality_value": _sanitize_quality_value(part_key, raw_quality_value),
+    }
+
+
+def merge_custom_monitors(saved_monitors: list | None, slot_count: int | None = None) -> list[dict]:
+    resolved_count = clamp_monitor_slots(slot_count)
+    defaults = default_custom_monitors(resolved_count)
+    if not isinstance(saved_monitors, list):
+        return defaults
+
+    merged: list[dict] = []
+    for index in range(resolved_count):
+        fallback_id = defaults[index]["id"]
+        raw_monitor = saved_monitors[index] if index < len(saved_monitors) else defaults[index]
+        normalized = normalize_custom_monitor(raw_monitor, fallback_id)
+        normalized["id"] = fallback_id
+        merged.append(normalized)
+    return merged
+
+
+def monitor_label(custom_monitor: dict) -> str:
+    part_key = custom_monitor["part"]
+    option_1 = custom_monitor["option_1"]
+    option_2 = custom_monitor["option_2"]
+    option_3 = custom_monitor["option_3"]
+    part_label = PART_DEFINITIONS[part_key]["label"]
+    option_1_label = OPTION_DEFINITIONS[option_1]["label"]
+    option_2_label = OPTION_DEFINITIONS[option_2]["label"]
+    option_3_label = OPTION_DEFINITIONS[option_3]["label"]
+    return f"{part_label} {option_1_label}/{option_2_label}/{option_3_label}"
+
+
+def monitor_fixed_options(custom_monitor: dict) -> set[str]:
+    labels = []
+    for option_key in (
+        custom_monitor["option_1"],
+        custom_monitor["option_2"],
+        custom_monitor["option_3"],
+    ):
+        option_payload = OPTION_DEFINITIONS[option_key]
+        if bool(option_payload.get("skip_query", False)):
+            continue
+        labels.append(str(option_payload["label"]))
+    return set(labels)
+
+
+def build_monitor_query(custom_monitor: dict) -> dict:
+    part_key = custom_monitor["part"]
+    category_code = PART_DEFINITIONS[part_key]["category_code"]
+    option_filters = [
+        (custom_monitor["option_1"], custom_monitor["value_1"]),
+        (custom_monitor["option_2"], custom_monitor["value_2"]),
+        (custom_monitor["option_3"], custom_monitor["value_3"]),
+    ]
+    etc_options: list[dict] = []
+    for option_key, option_value in option_filters:
+        option_payload = OPTION_DEFINITIONS[option_key]
+        if bool(option_payload.get("skip_query", False)):
+            continue
+        etc_options.append(
+            {
+                "FirstOption": 7,
+                "SecondOption": option_payload["second_option"],
+                "MinValue": int(option_value),
+                "MaxValue": int(option_value),
+            }
+        )
+
+    if custom_monitor["quality_value"] > 0:
+        etc_options.append(
+            {
+                "FirstOption": 1,
+                "SecondOption": 11,
+                "MinValue": custom_monitor["quality_value"],
+                "MaxValue": 99999,
+            }
+        )
+
+    return {
+        "ItemTier": 4,
+        "ItemGrade": "고대",
+        "CategoryCode": category_code,
+        "PageNo": 1,
+        "Sort": "BUY_PRICE",
+        "SortCondition": "ASC",
+        "EtcOptions": etc_options,
+    }
 
 
 def build_monitor_runtime_config(
-    monitor_values_by_key: dict[str, dict[str, int]] | None = None,
+    custom_monitors: list[dict] | None = None,
+    slot_count: int | None = None,
 ) -> list[dict]:
-    resolved_values = merge_monitor_values(
-        monitor_values_by_key if isinstance(monitor_values_by_key, dict) else {}
-    )
-    runtime_monitors = []
-    for monitor in DEFAULT_MONITORS:
-        runtime_monitor = dict(monitor)
-        runtime_monitor["query"] = build_monitor_query(
-            monitor,
-            resolved_values.get(monitor["key"], {}),
+    resolved_slot_count = slot_count
+    if resolved_slot_count is None and isinstance(custom_monitors, list):
+        resolved_slot_count = len(custom_monitors)
+
+    resolved_monitors = merge_custom_monitors(custom_monitors, resolved_slot_count)
+    runtime_monitors: list[dict] = []
+    for custom_monitor in resolved_monitors:
+        runtime_monitors.append(
+            {
+                "key": custom_monitor["id"],
+                "label": monitor_label(custom_monitor),
+                "fixed_options": monitor_fixed_options(custom_monitor),
+                "query": build_monitor_query(custom_monitor),
+                "enabled": custom_monitor["enabled"],
+            }
         )
-        runtime_monitors.append(runtime_monitor)
     return runtime_monitors

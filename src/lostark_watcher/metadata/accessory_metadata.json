@@ -1,0 +1,339 @@
+{
+  "max_monitor_slots": 10,
+  "default_monitor_slots": 1,
+  "part_definitions": {
+    "necklace": {
+      "label": "목걸이",
+      "category_code": 200010
+    },
+    "earring": {
+      "label": "귀걸이",
+      "category_code": 200020
+    },
+    "ring": {
+      "label": "반지",
+      "category_code": 200030
+    }
+  },
+  "option_definitions": {
+    "none": {
+      "label": "없음",
+      "second_option": 0,
+      "values": [
+        0
+      ],
+      "value_labels": [
+        "없음"
+      ],
+      "skip_query": true
+    },
+    "damage_to_enemies": {
+      "label": "적에게 주는 피해 증가",
+      "second_option": 42,
+      "values": [
+        200,
+        120,
+        55
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "additional_damage": {
+      "label": "추가 피해",
+      "second_option": 41,
+      "values": [
+        260,
+        160,
+        70
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "brand_power": {
+      "label": "낙인력",
+      "second_option": 44,
+      "values": [
+        800,
+        480,
+        215
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "gauge_gain": {
+      "label": "세레나데, 신앙, 조화 게이지 획득량 증가",
+      "second_option": 43,
+      "values": [
+        600,
+        360,
+        160
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "attack_power_percent": {
+      "label": "공격력 %",
+      "second_option": 45,
+      "values": [
+        155,
+        95,
+        40
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "weapon_attack_percent": {
+      "label": "무기 공격력 %",
+      "second_option": 46,
+      "values": [
+        300,
+        180,
+        80
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "party_heal_effect": {
+      "label": "파티원 회복 효과",
+      "second_option": 47,
+      "values": [
+        350,
+        210,
+        95
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "party_shield_effect": {
+      "label": "파티원 보호막 효과",
+      "second_option": 48,
+      "values": [
+        350,
+        210,
+        95
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "crit_rate": {
+      "label": "치명타 적중률",
+      "second_option": 49,
+      "values": [
+        155,
+        95,
+        40
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "crit_damage": {
+      "label": "치명타 피해",
+      "second_option": 50,
+      "values": [
+        400,
+        240,
+        110
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "party_attack_buff": {
+      "label": "아군 공격력 강화 효과",
+      "second_option": 51,
+      "values": [
+        500,
+        300,
+        135
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "party_damage_buff": {
+      "label": "아군 피해량 강화 효과",
+      "second_option": 52,
+      "values": [
+        750,
+        450,
+        200
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ],
+      "display_percent": true
+    },
+    "attack_power_flat": {
+      "label": "공격력 +",
+      "second_option": 53,
+      "values": [
+        390,
+        195,
+        80
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    },
+    "weapon_attack_flat": {
+      "label": "무기 공격력 +",
+      "second_option": 54,
+      "values": [
+        960,
+        480,
+        195
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    },
+    "max_hp": {
+      "label": "최대 생명력",
+      "second_option": 55,
+      "values": [
+        6500,
+        3250,
+        1300
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    },
+    "max_mana": {
+      "label": "최대 마나",
+      "second_option": 56,
+      "values": [
+        30,
+        15,
+        6
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    },
+    "status_duration": {
+      "label": "상태이상 공격 지속시간",
+      "second_option": 57,
+      "values": [
+        100,
+        50,
+        20
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    },
+    "combat_hp_recovery": {
+      "label": "전투 중 생명력 회복량",
+      "second_option": 58,
+      "values": [
+        50,
+        25,
+        10
+      ],
+      "value_labels": [
+        "상",
+        "중",
+        "하"
+      ]
+    }
+  },
+  "part_option_keys": {
+    "necklace": [
+      "damage_to_enemies",
+      "additional_damage",
+      "brand_power",
+      "gauge_gain",
+      "attack_power_flat",
+      "weapon_attack_flat",
+      "max_hp",
+      "max_mana",
+      "status_duration",
+      "combat_hp_recovery"
+    ],
+    "earring": [
+      "attack_power_percent",
+      "weapon_attack_percent",
+      "party_heal_effect",
+      "party_shield_effect",
+      "attack_power_flat",
+      "weapon_attack_flat",
+      "max_hp",
+      "max_mana",
+      "status_duration",
+      "combat_hp_recovery"
+    ],
+    "ring": [
+      "crit_rate",
+      "crit_damage",
+      "party_attack_buff",
+      "party_damage_buff",
+      "attack_power_flat",
+      "weapon_attack_flat",
+      "max_hp",
+      "max_mana",
+      "status_duration",
+      "combat_hp_recovery"
+    ]
+  },
+  "quality_value_options": {
+    "none": {
+      "label": "상관없음",
+      "value": 0
+    }
+  }
+}

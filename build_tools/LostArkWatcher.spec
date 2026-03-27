@@ -5,7 +5,10 @@ a = Analysis(
     ['..\\src\\watcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('..\\data\\monitors.json', 'data')],
+    datas=[
+        ('..\\data\\monitors.json', 'data'),
+        ('..\\src\\lostark_watcher\\metadata\\accessory_metadata.json', 'lostark_watcher/metadata'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

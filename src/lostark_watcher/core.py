@@ -221,9 +221,16 @@ def run_cli_watcher() -> int:
     token = TOKEN if TOKEN else app_settings["token"]
     monitors = [
         monitor
-        for monitor in build_monitor_runtime_config(app_settings["monitor_values"])
-        if app_settings["monitor_enabled"].get(monitor["key"], True)
+        for monitor in build_monitor_runtime_config(
+            app_settings["custom_monitors"],
+            app_settings["monitor_slot_count"],
+        )
+        if bool(monitor.get("enabled", True))
     ]
+    if not monitors:
+        log("Startup error: no accessory slots enabled. Configure at least one slot.")
+        return 1
+
     run_watcher_loop(
         stop_event,
         normalize_token(token),

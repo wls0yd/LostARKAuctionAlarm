@@ -6,11 +6,20 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import scrolledtext
+from tkinter import ttk
 from urllib import error
 
 from .app_logging import log
 from .core import is_valid_token, normalize_token, run_watcher_loop, summarize
-from .monitors import DEFAULT_MONITORS, build_monitor_runtime_config, default_monitor_values
+from .monitors import (
+    OPTION_DEFINITIONS,
+    PART_DEFINITIONS,
+    PART_OPTION_KEYS,
+    QUALITY_VALUE_OPTIONS,
+    build_monitor_runtime_config,
+    clamp_monitor_slots,
+    merge_custom_monitors,
+)
 from .runtime_context import (
     DEFAULT_UPDATE_EXE_PATH,
     DEFAULT_UPDATE_REPO,
@@ -115,13 +124,8 @@ class WatcherPopup:
         self.token_var = tk.StringVar(value=initial_token)
         self.interval_var = tk.IntVar(value=initial_interval)
         self.status_var = tk.StringVar(value="대기 중")
-        self.monitor_values = app_settings["monitor_values"]
-        self.monitor_enabled: dict[str, tk.BooleanVar] = {
-            monitor["key"]: tk.BooleanVar(
-                value=app_settings["monitor_enabled"][monitor["key"]]
-            )
-            for monitor in DEFAULT_MONITORS
-        }
+        self.monitor_slot_count = app_settings["monitor_slot_count"]
+        self.custom_monitors = app_settings["custom_monitors"]
 
         self.worker_thread: threading.Thread | None = None
         self.stop_event: threading.Event | None = None
@@ -320,11 +324,8 @@ class WatcherPopup:
             save_app_settings(
                 self.token_var.get(),
                 interval,
-                self.monitor_values,
-                {
-                    key: var.get()
-                    for key, var in self.monitor_enabled.items()
-                },
+                self.custom_monitors,
+                self.monitor_slot_count,
             )
             dialog.destroy()
 
@@ -339,73 +340,123 @@ class WatcherPopup:
     def _open_accessory_settings(self) -> None:
         dialog = tk.Toplevel(self.root)
         dialog.title("악세 설정")
-        dialog.geometry("520x500")
+        dialog.geometry("860x650")
         dialog.resizable(False, True)
         dialog.transient(self.root)
         dialog.grab_set()
 
-        def preset_label_for_value(field: dict, value: int) -> str:
-            for preset in field.get("preset_levels", []):
-                if preset["value"] == value:
-                    return str(preset["label"])
-            preset_levels = field.get("preset_levels", [])
-            if preset_levels:
-                return str(preset_levels[0]["label"])
-            return str(field["default"])
+        def part_label(part_key: str) -> str:
+            return str(PART_DEFINITIONS[part_key]["label"])
 
-        def preset_value_for_label(field: dict, label: str) -> int | None:
-            for preset in field.get("preset_levels", []):
-                if preset["label"] == label:
-                    return int(preset["value"])
-            return None
+        def part_key_from_label(label: str) -> str:
+            for key, payload in PART_DEFINITIONS.items():
+                if payload["label"] == label:
+                    return key
+            return "necklace"
 
-        draft_vars = {
-            monitor["key"]: tk.BooleanVar(value=self.monitor_enabled[monitor["key"]].get())
-            for monitor in DEFAULT_MONITORS
-        }
-        draft_value_vars: dict[str, dict[str, tk.StringVar]] = {
-            monitor["key"]: {
-                field["id"]: tk.StringVar(
-                    value=(
-                        preset_label_for_value(
-                            field,
-                            self.monitor_values[monitor["key"]][field["id"]],
-                        )
-                        if field.get("preset_levels")
-                        else str(self.monitor_values[monitor["key"]][field["id"]])
-                    )
-                )
-                for field in monitor.get("custom_values", [])
-            }
-            for monitor in DEFAULT_MONITORS
-        }
+        def part_option_labels(part_key: str) -> list[str]:
+            return [
+                OPTION_DEFINITIONS["none"]["label"],
+                *[OPTION_DEFINITIONS[key]["label"] for key in PART_OPTION_KEYS[part_key]],
+            ]
+
+        def option_key_from_label(part_key: str, label: str) -> str:
+            if label == OPTION_DEFINITIONS["none"]["label"]:
+                return "none"
+            for key in PART_OPTION_KEYS[part_key]:
+                if OPTION_DEFINITIONS[key]["label"] == label:
+                    return key
+            return PART_OPTION_KEYS[part_key][0]
+
+        def option_value_labels(option_key: str) -> list[str]:
+            payload = OPTION_DEFINITIONS[option_key]
+            if option_key == "none":
+                return [OPTION_DEFINITIONS["none"]["label"]]
+
+            def format_value(raw_value: int) -> str:
+                if bool(payload.get("display_percent", False)):
+                    percent_value = raw_value / 100
+                    return f"+{percent_value:g}%"
+                return f"+{raw_value}"
+
+            return [
+                f"{level} ({format_value(int(value))})"
+                for level, value in zip(payload["value_labels"], payload["values"])
+            ]
+
+        def option_value_from_label(option_key: str, label: str) -> int:
+            if option_key == "none":
+                return 0
+            payload = OPTION_DEFINITIONS[option_key]
+            labels = option_value_labels(option_key)
+            if label in labels:
+                return int(payload["values"][labels.index(label)])
+            return int(payload["values"][0])
+
+        def option_value_label_for_value(option_key: str, value: int) -> str:
+            if option_key == "none":
+                return OPTION_DEFINITIONS["none"]["label"]
+            payload = OPTION_DEFINITIONS[option_key]
+            labels = option_value_labels(option_key)
+            for index, candidate in enumerate(payload["values"]):
+                if candidate == value:
+                    return labels[index]
+            return labels[0]
+
+        def quality_mode_labels() -> list[str]:
+            return [str(QUALITY_VALUE_OPTIONS["none"]["label"]), "직접입력"]
+
+        def quality_mode_for_value(value: int) -> str:
+            if value <= 0:
+                return str(QUALITY_VALUE_OPTIONS["none"]["label"])
+            return "직접입력"
+
+        def quality_value_from_inputs(mode_label: str, raw_value: str) -> int:
+            if mode_label == str(QUALITY_VALUE_OPTIONS["none"]["label"]):
+                return 0
+            try:
+                parsed = int(raw_value.strip())
+            except ValueError as exc:
+                raise ValueError("품질수치는 숫자로 입력해주세요.") from exc
+            if parsed <= 0:
+                raise ValueError("품질수치는 1 이상의 숫자로 입력해주세요.")
+            return parsed
+
+        slot_count_var = tk.StringVar(value=str(self.monitor_slot_count))
+        current_slot_count = clamp_monitor_slots(self.monitor_slot_count)
+        draft_monitors = merge_custom_monitors(self.custom_monitors, current_slot_count)
+        row_states: list[dict] = []
 
         container = tk.Frame(dialog, padx=12, pady=12)
         container.pack(fill="both", expand=True)
 
         tk.Label(
             container,
-            text="탐색할 악세 조건과 수치를 설정하세요.",
+            text=(
+                "4티어 고대 기준 악세 조건을 설정하세요.\n"
+                "부위 / 옵션1 수치 / 옵션2 수치 / 옵션3 수치 / 품질수치를 직접 선택합니다."
+            ),
             font=("Malgun Gothic", 9),
         ).pack(anchor="w", pady=(0, 8))
 
+        slot_count_row = tk.Frame(container)
+        slot_count_row.pack(fill="x", pady=(0, 8))
+        tk.Label(slot_count_row, text="검색할 악세 개수", font=("Malgun Gothic", 9)).pack(side="left")
+        tk.Entry(slot_count_row, textvariable=slot_count_var, width=8).pack(side="left", padx=(8, 6))
+        tk.Label(slot_count_row, text="(1~10)", font=("Malgun Gothic", 8), fg="#666666").pack(side="left")
+
         scroll_frame = tk.Frame(container)
         scroll_frame.pack(fill="both", expand=True)
-
         canvas = tk.Canvas(scroll_frame, highlightthickness=0)
         scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
         sections_container = tk.Frame(canvas)
 
-        sections_container.bind(
-            "<Configure>",
-            lambda _event: canvas.configure(scrollregion=canvas.bbox("all")),
-        )
-
+        sections_container.bind("<Configure>", lambda _event: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas_window = canvas.create_window((0, 0), window=sections_container, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        def resize_canvas_content(_event: tk.Event) -> None:
-            canvas.itemconfigure(canvas_window, width=_event.width)
+        def resize_canvas_content(event: tk.Event) -> None:
+            canvas.itemconfigure(canvas_window, width=event.width)
 
         def on_mousewheel(event: tk.Event) -> None:
             if event.delta == 0 or not canvas.winfo_exists():
@@ -419,86 +470,236 @@ class WatcherPopup:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        for monitor in DEFAULT_MONITORS:
-            section = tk.LabelFrame(
-                sections_container,
-                font=("Malgun Gothic", 9),
-                padx=10,
-                pady=8,
-            )
-            section.pack(fill="x", pady=4)
+        def refresh_row(row_state: dict) -> None:
+            selected_part = part_key_from_label(row_state["part_var"].get())
+            all_option_labels = part_option_labels(selected_part)
 
-            tk.Checkbutton(
-                section,
-                text=f"{monitor['label']} 사용",
-                variable=draft_vars[monitor["key"]],
-                font=("Malgun Gothic", 9, "bold"),
-            ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+            row_state["option_1_combo"]["values"] = all_option_labels
+            if row_state["option_1_var"].get() not in all_option_labels:
+                row_state["option_1_var"].set(all_option_labels[0])
 
-            for row_index, field in enumerate(monitor.get("custom_values", []), start=1):
-                tk.Label(section, text=field["label"], font=("Malgun Gothic", 9)).grid(
-                    row=row_index,
-                    column=0,
-                    sticky="w",
-                    padx=(0, 10),
-                    pady=2,
+            option_1_key = option_key_from_label(selected_part, row_state["option_1_var"].get())
+            row_state["option_2_combo"]["values"] = all_option_labels
+            if row_state["option_2_var"].get() not in all_option_labels:
+                row_state["option_2_var"].set(all_option_labels[0])
+
+            option_2_key = option_key_from_label(selected_part, row_state["option_2_var"].get())
+            row_state["option_3_combo"]["values"] = all_option_labels
+            if row_state["option_3_var"].get() not in all_option_labels:
+                row_state["option_3_var"].set(all_option_labels[0])
+
+            option_3_key = option_key_from_label(selected_part, row_state["option_3_var"].get())
+
+            value_1_labels = option_value_labels(option_1_key)
+            row_state["value_1_combo"]["values"] = value_1_labels
+            if row_state["value_1_var"].get() not in value_1_labels:
+                row_state["value_1_var"].set(value_1_labels[0])
+
+            value_2_labels = option_value_labels(option_2_key)
+            row_state["value_2_combo"]["values"] = value_2_labels
+            if row_state["value_2_var"].get() not in value_2_labels:
+                row_state["value_2_var"].set(value_2_labels[0])
+
+            value_3_labels = option_value_labels(option_3_key)
+            row_state["value_3_combo"]["values"] = value_3_labels
+            if row_state["value_3_var"].get() not in value_3_labels:
+                row_state["value_3_var"].set(value_3_labels[0])
+
+            _ = selected_part
+            quality_modes = quality_mode_labels()
+            row_state["quality_mode_combo"]["values"] = quality_modes
+            if row_state["quality_mode_var"].get() not in quality_modes:
+                row_state["quality_mode_var"].set(quality_modes[0])
+            if row_state["quality_mode_var"].get() == str(QUALITY_VALUE_OPTIONS["none"]["label"]):
+                row_state["quality_value_var"].set("")
+                row_state["quality_value_entry"].configure(state="disabled")
+            else:
+                if not row_state["quality_value_var"].get().strip():
+                    row_state["quality_value_var"].set("1")
+                row_state["quality_value_entry"].configure(state="normal")
+
+        def render_sections(slot_count: int) -> None:
+            nonlocal draft_monitors
+            for child in sections_container.winfo_children():
+                child.destroy()
+
+            draft_monitors = merge_custom_monitors(draft_monitors, slot_count)
+            row_states.clear()
+
+            for index, monitor in enumerate(draft_monitors):
+                section = tk.LabelFrame(
+                    sections_container,
+                    text=f"검색 슬롯 {index + 1}",
+                    font=("Malgun Gothic", 9),
+                    padx=10,
+                    pady=8,
                 )
-                if field.get("preset_levels"):
-                    preset_labels = [preset["label"] for preset in field["preset_levels"]]
-                    tk.OptionMenu(
-                        section,
-                        draft_value_vars[monitor["key"]][field["id"]],
-                        *preset_labels,
-                    ).grid(row=row_index, column=1, sticky="w", pady=2)
-                else:
-                    tk.Entry(
-                        section,
-                        textvariable=draft_value_vars[monitor["key"]][field["id"]],
-                        width=18,
-                    ).grid(row=row_index, column=1, sticky="w", pady=2)
+                section.pack(fill="x", pady=4)
+
+                enabled_var = tk.BooleanVar(value=bool(monitor["enabled"]))
+                part_var = tk.StringVar(value=part_label(monitor["part"]))
+
+                option_1_var = tk.StringVar(value=OPTION_DEFINITIONS[monitor["option_1"]]["label"])
+                option_2_var = tk.StringVar(value=OPTION_DEFINITIONS[monitor["option_2"]]["label"])
+                option_3_var = tk.StringVar(value=OPTION_DEFINITIONS[monitor["option_3"]]["label"])
+                value_1_var = tk.StringVar(value=option_value_label_for_value(monitor["option_1"], int(monitor["value_1"])))
+                value_2_var = tk.StringVar(value=option_value_label_for_value(monitor["option_2"], int(monitor["value_2"])))
+                value_3_var = tk.StringVar(value=option_value_label_for_value(monitor["option_3"], int(monitor["value_3"])))
+                monitor_quality_value = int(monitor["quality_value"])
+                quality_mode_var = tk.StringVar(value=quality_mode_for_value(monitor_quality_value))
+                quality_value_var = tk.StringVar(value="" if monitor_quality_value <= 0 else str(monitor_quality_value))
+
+                tk.Checkbutton(section, text="사용", variable=enabled_var, font=("Malgun Gothic", 9, "bold")).grid(
+                    row=0, column=0, columnspan=4, sticky="w", pady=(0, 8)
+                )
+
+                tk.Label(section, text="부위", font=("Malgun Gothic", 9)).grid(row=1, column=0, sticky="w", pady=2)
+                part_combo = ttk.Combobox(
+                    section,
+                    textvariable=part_var,
+                    state="readonly",
+                    values=[part_label(key) for key in PART_DEFINITIONS],
+                    width=24,
+                )
+                part_combo.grid(row=1, column=1, sticky="w", pady=2)
+
+                tk.Label(section, text="옵션1", font=("Malgun Gothic", 9)).grid(row=2, column=0, sticky="w", pady=2)
+                option_1_combo = ttk.Combobox(section, textvariable=option_1_var, state="readonly", width=28)
+                option_1_combo.grid(row=2, column=1, sticky="w", pady=2)
+                tk.Label(section, text="옵션1 수치", font=("Malgun Gothic", 9)).grid(row=2, column=2, sticky="w", padx=(12, 0), pady=2)
+                value_1_combo = ttk.Combobox(section, textvariable=value_1_var, state="readonly", width=22)
+                value_1_combo.grid(row=2, column=3, sticky="w", pady=2)
+
+                tk.Label(section, text="옵션2", font=("Malgun Gothic", 9)).grid(row=3, column=0, sticky="w", pady=2)
+                option_2_combo = ttk.Combobox(section, textvariable=option_2_var, state="readonly", width=28)
+                option_2_combo.grid(row=3, column=1, sticky="w", pady=2)
+                tk.Label(section, text="옵션2 수치", font=("Malgun Gothic", 9)).grid(row=3, column=2, sticky="w", padx=(12, 0), pady=2)
+                value_2_combo = ttk.Combobox(section, textvariable=value_2_var, state="readonly", width=22)
+                value_2_combo.grid(row=3, column=3, sticky="w", pady=2)
+
+                tk.Label(section, text="옵션3", font=("Malgun Gothic", 9)).grid(row=4, column=0, sticky="w", pady=2)
+                option_3_combo = ttk.Combobox(section, textvariable=option_3_var, state="readonly", width=28)
+                option_3_combo.grid(row=4, column=1, sticky="w", pady=2)
+                tk.Label(section, text="옵션3 수치", font=("Malgun Gothic", 9)).grid(row=4, column=2, sticky="w", padx=(12, 0), pady=2)
+                value_3_combo = ttk.Combobox(section, textvariable=value_3_var, state="readonly", width=22)
+                value_3_combo.grid(row=4, column=3, sticky="w", pady=2)
+
+                tk.Label(section, text="품질수치", font=("Malgun Gothic", 9)).grid(row=5, column=0, sticky="w", pady=2)
+                quality_mode_combo = ttk.Combobox(section, textvariable=quality_mode_var, state="readonly", width=16)
+                quality_mode_combo.grid(row=5, column=1, sticky="w", pady=2)
+                quality_value_entry = tk.Entry(section, textvariable=quality_value_var, width=16)
+                quality_value_entry.grid(row=5, column=2, sticky="w", padx=(12, 0), pady=2)
+
+                row_state = {
+                    "id": monitor["id"],
+                    "enabled_var": enabled_var,
+                    "part_var": part_var,
+                    "option_1_var": option_1_var,
+                    "option_2_var": option_2_var,
+                    "option_3_var": option_3_var,
+                    "value_1_var": value_1_var,
+                    "value_2_var": value_2_var,
+                    "value_3_var": value_3_var,
+                    "quality_mode_var": quality_mode_var,
+                    "quality_value_var": quality_value_var,
+                    "option_1_combo": option_1_combo,
+                    "option_2_combo": option_2_combo,
+                    "option_3_combo": option_3_combo,
+                    "value_1_combo": value_1_combo,
+                    "value_2_combo": value_2_combo,
+                    "value_3_combo": value_3_combo,
+                    "quality_mode_combo": quality_mode_combo,
+                    "quality_value_entry": quality_value_entry,
+                }
+                row_states.append(row_state)
+
+                refresh_row(row_state)
+                for widget in (part_combo, option_1_combo, option_2_combo, option_3_combo, quality_mode_combo):
+                    widget.bind("<<ComboboxSelected>>", lambda _event, current=row_state: refresh_row(current))
+
+        def parse_slot_count() -> int | None:
+            raw_count = slot_count_var.get().strip()
+            try:
+                parsed_count = int(raw_count)
+            except ValueError:
+                messagebox.showerror("입력 오류", "검색할 악세 개수는 숫자로 입력해주세요.")
+                return None
+
+            if parsed_count < 1 or parsed_count > 10:
+                messagebox.showerror("입력 오류", "검색할 악세 개수는 1~10 사이여야 합니다.")
+                return None
+
+            return clamp_monitor_slots(parsed_count)
+
+        def apply_slot_count() -> bool:
+            nonlocal current_slot_count
+            parsed_count = parse_slot_count()
+            if parsed_count is None:
+                return False
+
+            current_slot_count = parsed_count
+            slot_count_var.set(str(current_slot_count))
+            render_sections(current_slot_count)
+            return True
+
+        tk.Button(slot_count_row, text="개수 반영", width=10, command=apply_slot_count).pack(side="left", padx=(10, 0))
+        render_sections(current_slot_count)
 
         def save() -> None:
-            if not any(var.get() for var in draft_vars.values()):
+            parsed_count = parse_slot_count()
+            if parsed_count is None:
+                return
+            if not row_states:
+                messagebox.showerror("입력 오류", "검색 슬롯을 1개 이상 설정해주세요.")
+                return
+
+            resolved_monitors: list[dict] = []
+            for row_state in row_states:
+                selected_part = part_key_from_label(row_state["part_var"].get())
+                option_1 = option_key_from_label(selected_part, row_state["option_1_var"].get())
+                option_2 = option_key_from_label(selected_part, row_state["option_2_var"].get())
+                option_3 = option_key_from_label(selected_part, row_state["option_3_var"].get())
+
+                selected_real_options = [key for key in (option_1, option_2, option_3) if key != "none"]
+                if len(set(selected_real_options)) < len(selected_real_options):
+                    messagebox.showerror("입력 오류", "옵션1/2/3은 서로 달라야 합니다.")
+                    return
+
+                try:
+                    quality_value = quality_value_from_inputs(
+                        row_state["quality_mode_var"].get(),
+                        row_state["quality_value_var"].get(),
+                    )
+                except ValueError as exc:
+                    messagebox.showerror("입력 오류", str(exc))
+                    return
+
+                resolved_monitors.append(
+                    {
+                        "id": row_state["id"],
+                        "enabled": bool(row_state["enabled_var"].get()),
+                        "part": selected_part,
+                        "option_1": option_1,
+                        "option_2": option_2,
+                        "option_3": option_3,
+                        "value_1": option_value_from_label(option_1, row_state["value_1_var"].get()),
+                        "value_2": option_value_from_label(option_2, row_state["value_2_var"].get()),
+                        "value_3": option_value_from_label(option_3, row_state["value_3_var"].get()),
+                        "quality_value": quality_value,
+                    }
+                )
+
+            if not any(monitor["enabled"] for monitor in resolved_monitors):
                 messagebox.showerror("입력 오류", "최소 1개 이상의 악세 조건을 선택해주세요.")
                 return
 
-            resolved_monitor_values = default_monitor_values()
-            for monitor in DEFAULT_MONITORS:
-                for field in monitor.get("custom_values", []):
-                    raw_value = draft_value_vars[monitor["key"]][field["id"]].get().strip()
-                    if field.get("preset_levels"):
-                        value = preset_value_for_label(field, raw_value)
-                        if value is None:
-                            messagebox.showerror(
-                                "입력 오류",
-                                f"{monitor['label']}의 {field['label']}은 상, 중, 하 중에서 선택해주세요.",
-                            )
-                            return
-                    else:
-                        try:
-                            value = int(raw_value)
-                        except ValueError:
-                            messagebox.showerror(
-                                "입력 오류",
-                                f"{monitor['label']}의 {field['label']}은 숫자로 입력해주세요.",
-                            )
-                            return
-                        if value < 0:
-                            messagebox.showerror(
-                                "입력 오류",
-                                f"{monitor['label']}의 {field['label']}은 0 이상이어야 합니다.",
-                            )
-                            return
-                    resolved_monitor_values[monitor["key"]][field["id"]] = value
-
-            for key, var in draft_vars.items():
-                self.monitor_enabled[key].set(var.get())
-            self.monitor_values = resolved_monitor_values
+            self.monitor_slot_count = parsed_count
+            self.custom_monitors = merge_custom_monitors(resolved_monitors, self.monitor_slot_count)
             save_app_settings(
                 self.token_var.get(),
                 self.interval_var.get(),
-                self.monitor_values,
-                {key: var.get() for key, var in self.monitor_enabled.items()},
+                self.custom_monitors,
+                self.monitor_slot_count,
             )
             dialog.destroy()
 
@@ -618,8 +819,11 @@ class WatcherPopup:
 
     def _selected_monitors(self) -> list[dict]:
         selected = []
-        for monitor in build_monitor_runtime_config(self.monitor_values):
-            if self.monitor_enabled[monitor["key"]].get():
+        for monitor in build_monitor_runtime_config(
+            self.custom_monitors,
+            self.monitor_slot_count,
+        ):
+            if bool(monitor.get("enabled", True)):
                 selected.append(monitor)
         return selected
 
