@@ -155,7 +155,10 @@ class WatcherPopup:
         apply_update_marker_if_present()
 
         repo = os.environ.get("LOSTARK_UPDATE_REPO", DEFAULT_UPDATE_REPO).strip()
-        exe_path = os.environ.get("LOSTARK_UPDATE_EXE_PATH", DEFAULT_UPDATE_EXE_PATH).strip()
+        exe_asset_name = os.environ.get(
+            "LOSTARK_UPDATE_EXE_PATH",
+            DEFAULT_UPDATE_EXE_PATH,
+        ).strip()
         if not repo:
             log("Auto-update: repository is not configured")
             return
@@ -163,18 +166,18 @@ class WatcherPopup:
         ref = resolve_update_ref(repo)
 
         try:
-            latest = fetch_latest_exe_info(repo, ref, exe_path)
+            latest = fetch_latest_exe_info(repo, ref, exe_asset_name)
             if latest is None:
                 return
 
             current_exe = Path(sys.executable)
-            installed_blob_sha = compute_github_blob_sha(current_exe)
-            if not installed_blob_sha:
-                app_settings = load_app_settings()
-                installed_blob_sha = app_settings["installed_exe_blob_sha"]
-            latest_blob_sha = latest["blob_sha"]
+            app_settings = load_app_settings()
+            installed_version_token = app_settings["installed_exe_blob_sha"]
+            if not installed_version_token:
+                installed_version_token = compute_github_blob_sha(current_exe) or ""
+            latest_version_token = latest["blob_sha"]
 
-            if installed_blob_sha == latest_blob_sha:
+            if installed_version_token == latest_version_token:
                 log("Auto-update: already up to date")
                 return
 
@@ -189,7 +192,7 @@ class WatcherPopup:
                 if not launch_self_replace_and_restart(
                     current_exe,
                     new_exe,
-                    latest_blob_sha,
+                    latest_version_token,
                     os.getpid(),
                 ):
                     if new_exe.exists():

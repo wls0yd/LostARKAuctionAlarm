@@ -1,26 +1,25 @@
 # LostArkWatcher
 
-실행 파일(`.exe`)은 아래 링크에서 바로 확인하고 다운로드할 수 있습니다.
+실행 파일(`.exe`)은 Git 저장소가 아니라 **GitHub Releases**로 배포합니다.
 
-- [exe 폴더로 이동 (exe)](./exe/)
+- [최신 릴리즈 다운로드](https://github.com/Jeong-Jin-Yong/LostARKAccessoriesAlarm/releases/latest)
 
 ## 다운로드 방법
 
-1. 위 링크를 눌러 `exe` 폴더로 이동합니다.
-2. 원하는 `.exe` 파일을 선택합니다.
-3. 파일 화면에서 **Download raw file** 버튼으로 다운로드합니다.
+1. 위 링크에서 최신 Release 페이지로 이동합니다.
+2. Assets에서 `LostArkWatcher.exe`를 다운로드합니다.
 
 ## 자동 업데이트
 
 - `LostArkWatcher.exe`를 실행하면 시작 후 자동으로 최신 exe를 확인합니다.
 - 최신 파일이 있으면 자동 다운로드 후 실행 중인 exe를 교체하고 앱을 재시작합니다.
-- 기본 확인 대상은 `Jeong-Jin-Yong/LostARKAccessoriesAlarm` 저장소의 `exe/LostArkWatcher.exe`입니다.
+- 기본 확인 대상은 `Jeong-Jin-Yong/LostARKAccessoriesAlarm` 저장소의 **latest release asset**(`LostArkWatcher.exe`)입니다.
 
 ### 자동 업데이트 환경변수(선택)
 
 - `LOSTARK_UPDATE_REPO`: 업데이트 원본 저장소(`owner/repo`), 기본값 `Jeong-Jin-Yong/LostARKAccessoriesAlarm`
-- `LOSTARK_UPDATE_REF`: 조회 브랜치/태그, 미지정 시 저장소 기본 브랜치 자동 사용
-- `LOSTARK_UPDATE_EXE_PATH`: 저장소 내 exe 경로, 기본값 `exe/LostArkWatcher.exe`
+- `LOSTARK_UPDATE_REF`: 조회할 릴리즈 식별자, 기본값 `latest` (예: `v1.2.3` 태그 릴리즈를 강제로 보고 싶으면 `v1.2.3` 지정)
+- `LOSTARK_UPDATE_EXE_PATH`: Release asset 파일명, 기본값 `LostArkWatcher.exe`
 
 ## 다른 사람들을 위한 빠른 시작 가이드
 
@@ -31,7 +30,7 @@
 
 ### 2) 가장 쉬운 실행 방법 (`.exe`)
 
-1. 위의 `exe` 링크에서 `LostArkWatcher.exe`를 다운로드합니다.
+1. 위의 Release 링크에서 `LostArkWatcher.exe`를 다운로드합니다.
 2. 실행 후 토큰 입력(또는 환경변수 설정) 후 감시를 시작합니다.
 3. 알림이 뜨면 게임 내 거래소에서 같은 옵션을 확인합니다.
 

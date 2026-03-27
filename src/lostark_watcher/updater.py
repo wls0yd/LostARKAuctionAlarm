@@ -39,46 +39,61 @@ def github_api_get_json(url: str) -> dict:
 
 
 def resolve_update_ref(repo: str) -> str:
+    _ = repo
     env_ref = os.environ.get("LOSTARK_UPDATE_REF", "").strip()
     if env_ref:
         return env_ref
-
-    try:
-        repo_meta = github_api_get_json(f"{GITHUB_API_BASE}/repos/{repo}")
-        default_branch = str(repo_meta.get("default_branch", "")).strip()
-        if default_branch:
-            return default_branch
-    except Exception as exc:
-        log(f"Auto-update: failed to resolve default branch ({exc})")
-
     return DEFAULT_UPDATE_REF
 
 
 def fetch_latest_exe_info(repo: str, ref: str, exe_path: str) -> dict | None:
+    release_api_path = "latest"
+    if ref and ref.lower() != "latest":
+        release_api_path = f"tags/{ref}"
+
     try:
-        encoded_path = exe_path.strip("/")
         payload = github_api_get_json(
-            f"{GITHUB_API_BASE}/repos/{repo}/contents/{encoded_path}?ref={ref}"
+            f"{GITHUB_API_BASE}/repos/{repo}/releases/{release_api_path}"
         )
     except error.HTTPError as exc:
         if exc.code == 404:
             log(
-                "Auto-update: executable not found in repository "
-                f"({repo}/{ref}/{exe_path})"
+                "Auto-update: release or tag not found "
+                f"({repo}, ref={ref})"
             )
             return None
         raise
 
-    blob_sha = str(payload.get("sha", "")).strip()
-    download_url = str(payload.get("download_url", "")).strip()
-    if not blob_sha or not download_url:
-        log("Auto-update: missing download URL or blob SHA")
+    assets = payload.get("assets")
+    if not isinstance(assets, list):
+        log("Auto-update: release assets payload is invalid")
         return None
 
-    return {
-        "blob_sha": blob_sha,
-        "download_url": download_url,
-    }
+    normalized_asset_name = exe_path.strip()
+    for asset in assets:
+        if not isinstance(asset, dict):
+            continue
+
+        asset_name = str(asset.get("name", "")).strip()
+        if asset_name != normalized_asset_name:
+            continue
+
+        download_url = str(asset.get("browser_download_url", "")).strip()
+        asset_id = str(asset.get("id", "")).strip()
+        if not download_url or not asset_id:
+            log("Auto-update: release asset is missing download URL or id")
+            return None
+
+        return {
+            "blob_sha": asset_id,
+            "download_url": download_url,
+        }
+
+    log(
+        "Auto-update: release asset not found "
+        f"({repo}, ref={ref}, asset={normalized_asset_name})"
+    )
+    return None
 
 
 def download_file(download_url: str, output_path: Path) -> None:
