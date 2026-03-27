@@ -442,7 +442,7 @@ class WatcherPopup:
 
         self.log_window = tk.Toplevel(self.root)
         self.log_window.title("로그 창")
-        self.log_window.geometry("860x480")
+        self.log_window.geometry("1200x480")
 
         self.log_text = scrolledtext.ScrolledText(
             self.log_window,

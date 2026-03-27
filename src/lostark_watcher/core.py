@@ -105,10 +105,9 @@ def item_signature(item: dict) -> str:
 def summarize(item: dict, fixed_options: set[str]) -> str:
     info = item.get("AuctionInfo", {})
     return (
-        f"{item.get('Name')} | price={info.get('BuyPrice')} | quality={item.get('GradeQuality')} "
-        f"| trades={info.get('TradeAllowCount')} | upgrade={info.get('UpgradeLevel')} "
+        f"{item.get('Name')} | price={info.get('BuyPrice')} "
+        f"| trades={info.get('TradeAllowCount')} "
         f"| stat={stat_value(item)} | extra={extra_option_text(item, fixed_options)} "
-        f"| ends={info.get('EndDate')}"
     )
 
 
