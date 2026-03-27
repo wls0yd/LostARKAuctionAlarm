@@ -134,6 +134,7 @@ class WatcherPopup:
         self.reset_event: threading.Event | None = None
         self.log_window: tk.Toplevel | None = None
         self.log_text: scrolledtext.ScrolledText | None = None
+        self.log_force_scroll_bottom_once = False
         self.update_thread: threading.Thread | None = None
 
         self._build_layout()
@@ -790,6 +791,7 @@ class WatcherPopup:
         self.log_text.bind("<Control-t>", self._emit_test_listing_log)
 
         self.log_window.protocol("WM_DELETE_WINDOW", self._close_log_window)
+        self.log_force_scroll_bottom_once = True
         self._refresh_log_window()
 
     def _emit_test_listing_log(self, _event: tk.Event) -> str:
@@ -866,6 +868,13 @@ class WatcherPopup:
         if self.log_window is None or not self.log_window.winfo_exists() or self.log_text is None:
             return
 
+        yview_before = self.log_text.yview()
+        should_follow_tail = True
+        if len(yview_before) == 2:
+            should_follow_tail = yview_before[1] >= 0.999
+        if self.log_force_scroll_bottom_once:
+            should_follow_tail = True
+
         text = ""
         if LOG_PATH.exists():
             text = LOG_PATH.read_text(encoding="utf-8", errors="replace")
@@ -873,8 +882,12 @@ class WatcherPopup:
         self.log_text.configure(state="normal")
         self.log_text.delete("1.0", tk.END)
         self.log_text.insert(tk.END, text)
-        self.log_text.see(tk.END)
+        if should_follow_tail:
+            self.log_text.see(tk.END)
+        elif len(yview_before) == 2:
+            self.log_text.yview_moveto(yview_before[0])
         self.log_text.configure(state="disabled")
+        self.log_force_scroll_bottom_once = False
 
         self.log_window.after(1000, self._refresh_log_window)
 
