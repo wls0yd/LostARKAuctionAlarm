@@ -14,6 +14,7 @@
 - `LostArkWatcher.exe`를 실행하면 시작 후 자동으로 최신 exe를 확인합니다.
 - 최신 파일이 있으면 자동 다운로드 후 실행 중인 exe를 교체하고 앱을 재시작합니다.
 - 기본 확인 대상은 `Jeong-Jin-Yong/LostARKAccessoriesAlarm` 저장소의 **latest release asset**(`LostArkWatcher.exe`)입니다.
+- 앱 상단에 표시되는 "현재 버전"은 Release 태그(`vX.Y.Z`)와 동일하게 빌드 시 자동 주입됩니다.
 
 ### 자동 업데이트 환경변수(선택)
 

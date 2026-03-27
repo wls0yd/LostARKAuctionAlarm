@@ -9,6 +9,7 @@ from tkinter import scrolledtext
 from tkinter import ttk
 from urllib import error
 
+from .app_version import get_app_version
 from .app_logging import log
 from .core import is_valid_token, normalize_token, run_watcher_loop, summarize
 from .monitors import (
@@ -112,8 +113,9 @@ class WatcherPopup:
     }
 
     def __init__(self) -> None:
+        self.app_version = get_app_version()
         self.root = tk.Tk()
-        self.root.title("LostArkWatcher 팝업")
+        self.root.title(f"LostArkWatcher 팝업 ({self.app_version})")
         self.root.geometry("420x290")
         self.root.resizable(False, False)
 
@@ -224,8 +226,12 @@ class WatcherPopup:
 
         description = tk.Label(
             frame,
-            text="아래 버튼으로 API, 탐색, 로그, 악세 설정을 관리하세요.",
+            text=(
+                "아래 버튼으로 API, 탐색, 로그, 악세 설정을 관리하세요.\n"
+                f"현재 버전: {self.app_version}"
+            ),
             font=("Malgun Gothic", 9),
+            justify="left",
         )
         description.pack(anchor="w", pady=(4, 12))
 

@@ -7,6 +7,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('..\\data\\monitors.json', 'data'),
+        ('..\\data\\app_version.txt', 'data'),
         ('..\\src\\lostark_watcher\\metadata\\accessory_metadata.json', 'lostark_watcher/metadata'),
     ],
     hiddenimports=[],
