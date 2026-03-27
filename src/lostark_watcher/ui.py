@@ -472,9 +472,12 @@ class WatcherPopup:
                 return
             canvas.yview_scroll(int(-event.delta / 120), "units")
 
+        def scroll_canvas_mousewheel(event: tk.Event) -> str:
+            on_mousewheel(event)
+            return "break"
+
         canvas.bind("<Configure>", resize_canvas_content)
-        for widget in (canvas, sections_container):
-            widget.bind("<MouseWheel>", on_mousewheel)
+        dialog.bind("<MouseWheel>", scroll_canvas_mousewheel)
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -598,6 +601,18 @@ class WatcherPopup:
                 quality_mode_combo.grid(row=5, column=1, sticky="w", pady=2)
                 quality_value_entry = tk.Entry(section, textvariable=quality_value_var, width=16)
                 quality_value_entry.grid(row=5, column=2, sticky="w", padx=(12, 0), pady=2)
+
+                for combo_widget in (
+                    part_combo,
+                    option_1_combo,
+                    value_1_combo,
+                    option_2_combo,
+                    value_2_combo,
+                    option_3_combo,
+                    value_3_combo,
+                    quality_mode_combo,
+                ):
+                    combo_widget.bind("<MouseWheel>", scroll_canvas_mousewheel)
 
                 row_state = {
                     "id": monitor["id"],
