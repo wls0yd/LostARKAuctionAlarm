@@ -1,0 +1,383 @@
+[
+  {
+    "key": "necklace_damage",
+    "label": "목걸이 적주피/추피",
+    "fixed_options": [
+      "적에게 주는 피해 증가",
+      "추가 피해"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200010,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC"
+    },
+    "custom_values": [
+      {
+        "id": "option_1",
+        "label": "적주피 수치",
+        "default": 200,
+        "preset_levels": [
+          {
+            "label": "상 (2)",
+            "value": 200
+          },
+          {
+            "label": "중 (1.2)",
+            "value": 120
+          },
+          {
+            "label": "하 (0.55)",
+            "value": 55
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 42,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "option_2",
+        "label": "추피 수치",
+        "default": 260,
+        "preset_levels": [
+          {
+            "label": "상 (2.6)",
+            "value": 260
+          },
+          {
+            "label": "중 (1.6)",
+            "value": 160
+          },
+          {
+            "label": "하 (0.6)",
+            "value": 60
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 41,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "quality_min",
+        "label": "최소 품질",
+        "default": 17500,
+        "query_option": {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "match": "minimum"
+        }
+      }
+    ]
+  },
+  {
+    "key": "necklace_brand_gauge",
+    "label": "목걸이 낙인력/게이지",
+    "fixed_options": [
+      "낙인력",
+      "세레나데, 신성, 조화 게이지 획득량 증가",
+      "세레나데, 신앙, 조화 게이지 획득량"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200010,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC"
+    },
+    "custom_values": [
+      {
+        "id": "option_1",
+        "label": "낙인력 수치",
+        "default": 800,
+        "preset_levels": [
+          {
+            "label": "상 (8)",
+            "value": 800
+          },
+          {
+            "label": "중 (4.8)",
+            "value": 480
+          },
+          {
+            "label": "하 (2.15)",
+            "value": 215
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 44,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "option_2",
+        "label": "게이지 수치",
+        "default": 600,
+        "preset_levels": [
+          {
+            "label": "상 (6)",
+            "value": 600
+          },
+          {
+            "label": "중 (3.6)",
+            "value": 360
+          },
+          {
+            "label": "하 (1.6)",
+            "value": 160
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 43,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "quality_min",
+        "label": "최소 품질",
+        "default": 17300,
+        "query_option": {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "match": "minimum"
+        }
+      }
+    ]
+  },
+  {
+    "key": "earring_attack",
+    "label": "귀걸이 공퍼/무공퍼",
+    "fixed_options": [
+      "공격력",
+      "무기 공격력"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200020,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC"
+    },
+    "custom_values": [
+      {
+        "id": "option_1",
+        "label": "공퍼 수치",
+        "default": 155,
+        "preset_levels": [
+          {
+            "label": "상 (1.55)",
+            "value": 155
+          },
+          {
+            "label": "중 (0.95)",
+            "value": 95
+          },
+          {
+            "label": "하 (0.4)",
+            "value": 40
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 45,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "option_2",
+        "label": "무공퍼 수치",
+        "default": 300,
+        "preset_levels": [
+          {
+            "label": "상 (3)",
+            "value": 300
+          },
+          {
+            "label": "중 (1.8)",
+            "value": 180
+          },
+          {
+            "label": "하 (0.8)",
+            "value": 80
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 46,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "quality_min",
+        "label": "최소 품질",
+        "default": 13500,
+        "query_option": {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "match": "minimum"
+        }
+      }
+    ]
+  },
+  {
+    "key": "ring_crit",
+    "label": "반지 치적/치피",
+    "fixed_options": [
+      "치명타 적중률",
+      "치명타 피해"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200030,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC"
+    },
+    "custom_values": [
+      {
+        "id": "option_2",
+        "label": "치피 수치",
+        "default": 400,
+        "preset_levels": [
+          {
+            "label": "상 (4)",
+            "value": 400
+          },
+          {
+            "label": "중 (2.4)",
+            "value": 240
+          },
+          {
+            "label": "하 (1.1)",
+            "value": 110
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 50,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "option_1",
+        "label": "치적 수치",
+        "default": 155,
+        "preset_levels": [
+          {
+            "label": "상 (1.55)",
+            "value": 155
+          },
+          {
+            "label": "중 (0.95)",
+            "value": 95
+          },
+          {
+            "label": "하 (0.4)",
+            "value": 40
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 49,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "quality_min",
+        "label": "최소 품질",
+        "default": 12500,
+        "query_option": {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "match": "minimum"
+        }
+      }
+    ]
+  },
+  {
+    "key": "ring_party_buff",
+    "label": "반지 아공강/아피강",
+    "fixed_options": [
+      "아군 공격력 강화 효과",
+      "아군 피해량 강화 효과"
+    ],
+    "query": {
+      "ItemTier": 4,
+      "ItemGrade": "고대",
+      "CategoryCode": 200030,
+      "PageNo": 1,
+      "Sort": "BUY_PRICE",
+      "SortCondition": "ASC"
+    },
+    "custom_values": [
+      {
+        "id": "option_1",
+        "label": "아공강 수치",
+        "default": 500,
+        "preset_levels": [
+          {
+            "label": "상 (5)",
+            "value": 500
+          },
+          {
+            "label": "중 (3)",
+            "value": 300
+          },
+          {
+            "label": "하 (1.35)",
+            "value": 135
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 51,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "option_2",
+        "label": "아피강 수치",
+        "default": 750,
+        "preset_levels": [
+          {
+            "label": "상 (7.5)",
+            "value": 750
+          },
+          {
+            "label": "중 (4.5)",
+            "value": 450
+          },
+          {
+            "label": "하 (2)",
+            "value": 200
+          }
+        ],
+        "query_option": {
+          "FirstOption": 7,
+          "SecondOption": 52,
+          "match": "exact"
+        }
+      },
+      {
+        "id": "quality_min",
+        "label": "최소 품질",
+        "default": 12500,
+        "query_option": {
+          "FirstOption": 1,
+          "SecondOption": 11,
+          "match": "minimum"
+        }
+      }
+    ]
+  }
+]

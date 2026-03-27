@@ -5,15 +5,15 @@
 
 ## 1) 저장소 개요
 
-- 메인 애플리케이션: `watcher.py` (Tkinter 팝업 + CLI 감시 루프)
-- 빌드 관련: `build_exe.bat`, `LostArkWatcher.spec` (PyInstaller onefile windowed)
-- 실행 보조 스크립트: `run_watcher.bat`
-- 런타임 산출물: `state.json`, `watch.log`, `dist/`, `build/`
+- 메인 애플리케이션: `src/watcher.py` (Tkinter 팝업 + CLI 감시 루프)
+- 빌드 관련: `build_tools/build_exe.bat`, `build_tools/LostArkWatcher.spec` (PyInstaller onefile windowed)
+- 실행 보조 스크립트: `build_tools/run_watcher.bat`
+- 런타임 산출물: `data/state.json`, `watch.log`, `exe/`, `build/`
 - 언어/플랫폼: Python, Windows 중심
 
 ## 2) 명령어 기준 원칙
 
-- 기본적으로 저장소에 이미 있는 스크립트(`build_exe.bat`, `run_watcher.bat`)를 우선 사용합니다.
+- 기본적으로 저장소에 이미 있는 스크립트(`build_tools/build_exe.bat`, `build_tools/run_watcher.bat`)를 우선 사용합니다.
 - 저장소에 없는 도구 체인을 임의로 "있는 것처럼" 가정하지 않습니다.
 - 새 도구(pytest/ruff/mypy 등)를 도입하면 README와 이 문서를 동시에 갱신합니다.
 
@@ -29,23 +29,23 @@
 ## 4) 실행 명령
 
 - GUI 모드(기본)
-  - `py watcher.py`
-  - 또는 `python watcher.py`
+  - `py src/watcher.py`
+  - 또는 `python src/watcher.py`
 - CLI 모드(팝업 없이)
-  - `py watcher.py --cli`
-  - 또는 `python watcher.py --cli`
+  - `py src/watcher.py --cli`
+  - 또는 `python src/watcher.py --cli`
 - 배치 스크립트 실행
-  - `run_watcher.bat`
+  - `build_tools/run_watcher.bat`
 
 ## 5) 빌드 명령
 
 - 표준 빌드(권장)
-  - `build_exe.bat`
+  - `build_tools/build_exe.bat`
 - 수동 빌드(동등 명령)
   - `py -m pip install pyinstaller`
-  - `py -m PyInstaller --noconfirm --clean --windowed --onefile --name LostArkWatcher watcher.py`
+  - `py -m PyInstaller --noconfirm --clean --distpath exe --workpath build build_tools/LostArkWatcher.spec`
 - 기대 결과물
-  - `dist/LostArkWatcher.exe`
+  - `exe/LostArkWatcher.exe`
 
 ## 6) 린트 / 포맷 / 타입체크 현황
 
@@ -59,7 +59,7 @@
   - `mypy`
   - `pyright`
 - 최소 검증(구문 확인)
-  - `py -m py_compile watcher.py`
+  - `py -m py_compile src/watcher.py`
 
 도구를 새로 도입했다면 설정 파일과 명령어를 이 문서에 반드시 추가합니다.
 
@@ -72,7 +72,7 @@
   - GUI 실행 후 탐색 시작/종료 동작 확인
   - API 토큰 유효성 검사 경로 확인
   - 로그 창 자동 갱신 확인
-  - `state.json` 읽기/쓰기 확인
+  - `data/state.json` 읽기/쓰기 확인
 
 ### 단일 테스트 실행 명령(향후 pytest 도입 시)
 
@@ -136,7 +136,7 @@
 
 - 임의 `print` 남발 대신 중앙 `log(...)` 경로를 사용합니다.
 - `watch.log`는 현재 구현상 시간 단위 초기화 동작이 있으므로, 변경 시 의도를 명확히 남깁니다.
-- 상태는 `state.json`의 `seen_by_monitor` 스키마를 기준으로 유지합니다.
+- 상태는 `data/state.json`의 `seen_by_monitor` 스키마를 기준으로 유지합니다.
 - `load_state()`의 레거시 호환 로직은 스키마 변경 시에도 보존합니다.
 
 ### UI/스레딩
@@ -152,18 +152,18 @@
 - 현재 단일 파일 중심 구조를 불필요하게 분해하지 않습니다(리팩터링 요청 시 예외).
 - 의존성 추가 시 빌드 경로와 사용자 실행 경로 영향도를 먼저 검토합니다.
 - 테스트를 도입하면 `tests/` 구조와 단일 테스트 실행법을 문서에 즉시 반영합니다.
-- 저장 상태(`state.json`)와 토큰 처리 로직은 하위 호환성을 최대한 유지합니다.
+- 저장 상태(`data/state.json`)와 토큰 처리 로직은 하위 호환성을 최대한 유지합니다.
 - Windows 사용성을 우선 고려합니다(`.bat`, `winsound`, exe 배포 흐름).
 - Git 커밋 워크플로우는 기본적으로 `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:` 같은 접두어를 사용하는 형식을 따릅니다.
 - 커밋 메시지는 가능하면 변경 이유가 드러나도록 짧고 명확하게 작성합니다.
 
 ## 11) 작업 완료 전 검증 체크리스트
 
-- 최소: `py -m py_compile watcher.py` 실행
+- 최소: `py -m py_compile src/watcher.py` 실행
 - 실행 검증: GUI 1회 실행 및 시작/중지 동작 확인
 - 감시 로직 변경 시: `--cli` 모드도 짧게 점검
-- 빌드 관련 변경 시: `build_exe.bat` 실행 후 `dist/LostArkWatcher.exe` 확인
-- 생성 산출물(`build/`, `dist/`, 로그/상태 파일) 의도치 않은 변경 여부 확인
+- 빌드 관련 변경 시: `build_tools/build_exe.bat` 실행 후 `exe/LostArkWatcher.exe` 확인
+- 생성 산출물(`build/`, `exe/`, 로그/상태 파일) 의도치 않은 변경 여부 확인
 
 ## 12) Cursor / Copilot 규칙 파일 확인 결과
 
@@ -178,7 +178,7 @@
 - 항상 "사용자가 편하게 쓸 수 있는가"를 최우선으로 판단합니다.
 - 설정/실행 단계를 늘리는 변경은 신중히 검토합니다.
 - 오류 메시지는 기술자 중심이 아니라 사용자 행동 유도 중심으로 작성합니다.
-- 배포 산출물 경로(`dist/LostArkWatcher.exe`)는 항상 명확하게 유지합니다.
+- 배포 산출물 경로(`exe/LostArkWatcher.exe`)는 항상 명확하게 유지합니다.
 
 ## 14) 권장 커뮤니케이션 규칙(에이전트용)
 

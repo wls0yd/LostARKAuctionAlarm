@@ -1,9 +1,10 @@
 __pycache__/
 *.pyc
 .sisyphus/
-state.json
 watch.log
+data/state.json
+data/state_from_dist.json
 
 # PyInstaller outputs
 build/
-*.spec
+exe/*.exe
