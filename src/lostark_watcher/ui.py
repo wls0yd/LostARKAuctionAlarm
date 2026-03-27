@@ -431,8 +431,8 @@ class WatcherPopup:
                 raise ValueError("품질수치는 1 이상의 숫자로 입력해주세요.")
             return parsed
 
-        slot_count_var = tk.StringVar(value=str(self.monitor_slot_count))
         current_slot_count = clamp_monitor_slots(self.monitor_slot_count)
+        slot_count_var = tk.StringVar(value=str(current_slot_count))
         draft_monitors = merge_custom_monitors(self.custom_monitors, current_slot_count)
         row_states: list[dict] = []
 
@@ -451,7 +451,11 @@ class WatcherPopup:
         slot_count_row = tk.Frame(container)
         slot_count_row.pack(fill="x", pady=(0, 8))
         tk.Label(slot_count_row, text="검색할 악세 개수", font=("Malgun Gothic", 9)).pack(side="left")
-        tk.Entry(slot_count_row, textvariable=slot_count_var, width=8).pack(side="left", padx=(8, 6))
+        decrease_slot_button = tk.Button(slot_count_row, text="-", width=3)
+        decrease_slot_button.pack(side="left", padx=(8, 4))
+        tk.Label(slot_count_row, textvariable=slot_count_var, width=4, font=("Malgun Gothic", 10, "bold")).pack(side="left")
+        increase_slot_button = tk.Button(slot_count_row, text="+", width=3)
+        increase_slot_button.pack(side="left", padx=(4, 6))
         tk.Label(slot_count_row, text="(1~10)", font=("Malgun Gothic", 8), fg="#666666").pack(side="left")
 
         scroll_frame = tk.Frame(container)
@@ -467,8 +471,22 @@ class WatcherPopup:
         def resize_canvas_content(event: tk.Event) -> None:
             canvas.itemconfigure(canvas_window, width=event.width)
 
+        def can_scroll_canvas() -> bool:
+            bbox = canvas.bbox("all")
+            if bbox is None:
+                return False
+            content_height = bbox[3] - bbox[1]
+            viewport_height = canvas.winfo_height()
+            return content_height > viewport_height
+
+        def refresh_scroll_state() -> None:
+            if not can_scroll_canvas():
+                canvas.yview_moveto(0.0)
+
         def on_mousewheel(event: tk.Event) -> None:
             if event.delta == 0 or not canvas.winfo_exists():
+                return
+            if not can_scroll_canvas():
                 return
             canvas.yview_scroll(int(-event.delta / 120), "units")
 
@@ -641,38 +659,48 @@ class WatcherPopup:
                 for widget in (part_combo, option_1_combo, option_2_combo, option_3_combo, quality_mode_combo):
                     widget.bind("<<ComboboxSelected>>", lambda _event, current=row_state: refresh_row(current))
 
-        def parse_slot_count() -> int | None:
-            raw_count = slot_count_var.get().strip()
-            try:
-                parsed_count = int(raw_count)
-            except ValueError:
-                messagebox.showerror("입력 오류", "검색할 악세 개수는 숫자로 입력해주세요.")
-                return None
+            canvas.after_idle(refresh_scroll_state)
 
-            if parsed_count < 1 or parsed_count > 10:
-                messagebox.showerror("입력 오류", "검색할 악세 개수는 1~10 사이여야 합니다.")
-                return None
+        def build_empty_slot_monitor(slot_index: int) -> dict:
+            return {
+                "id": f"slot_{slot_index + 1}",
+                "enabled": True,
+                "part": "necklace",
+                "option_1": "none",
+                "option_2": "none",
+                "option_3": "none",
+                "value_1": 0,
+                "value_2": 0,
+                "value_3": 0,
+                "quality_value": 0,
+            }
 
-            return clamp_monitor_slots(parsed_count)
+        def update_slot_buttons() -> None:
+            decrease_slot_button.configure(state="disabled" if current_slot_count <= 1 else "normal")
+            increase_slot_button.configure(state="disabled" if current_slot_count >= 10 else "normal")
 
-        def apply_slot_count() -> bool:
+        def adjust_slot_count(delta: int) -> None:
             nonlocal current_slot_count
-            parsed_count = parse_slot_count()
-            if parsed_count is None:
-                return False
+            next_count = clamp_monitor_slots(current_slot_count + delta)
+            if next_count == current_slot_count:
+                return
 
-            current_slot_count = parsed_count
+            if next_count > current_slot_count:
+                while len(draft_monitors) < next_count:
+                    draft_monitors.append(build_empty_slot_monitor(len(draft_monitors)))
+
+            current_slot_count = next_count
             slot_count_var.set(str(current_slot_count))
             render_sections(current_slot_count)
-            return True
+            update_slot_buttons()
 
-        tk.Button(slot_count_row, text="개수 반영", width=10, command=apply_slot_count).pack(side="left", padx=(10, 0))
+        decrease_slot_button.configure(command=lambda: adjust_slot_count(-1))
+        increase_slot_button.configure(command=lambda: adjust_slot_count(1))
         render_sections(current_slot_count)
+        update_slot_buttons()
 
         def save() -> None:
-            parsed_count = parse_slot_count()
-            if parsed_count is None:
-                return
+            parsed_count = current_slot_count
             if not row_states:
                 messagebox.showerror("입력 오류", "검색 슬롯을 1개 이상 설정해주세요.")
                 return
@@ -740,7 +768,7 @@ class WatcherPopup:
 
         self.log_window = tk.Toplevel(self.root)
         self.log_window.title("로그 창")
-        self.log_window.geometry("1200x480")
+        self.log_window.geometry("960x480")
 
         self.log_text = scrolledtext.ScrolledText(
             self.log_window,
