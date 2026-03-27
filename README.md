@@ -58,3 +58,4 @@ py src/watcher.py --cli
 - 실행이 안 될 때: 백신/SmartScreen 차단 여부를 먼저 확인하세요.
 - 알림이 안 올 때: 토큰이 만료되었는지 확인하고 다시 입력하세요.
 - 업데이트가 안 될 때: 인터넷 연결 상태와 업데이트 환경변수를 확인하세요.
+- 업데이트 직후 `Failed to load Python DLL` 오류가 뜨면: 최신 Release의 `LostArkWatcher.exe`를 다시 내려받아 기존 파일을 덮어쓴 뒤 실행해 주세요. 이 오류는 손상되었거나 필수 런타임 DLL이 빠진 exe에서 발생할 수 있습니다.

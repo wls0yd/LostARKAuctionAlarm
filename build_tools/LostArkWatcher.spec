@@ -1,15 +1,53 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from pathlib import Path
+import os
 import sys
+from pathlib import Path
 
 
-python_root = Path(sys.base_prefix)
-runtime_binaries = []
-for dll_name in ("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll"):
-    dll_path = python_root / dll_name
-    if dll_path.exists():
-        runtime_binaries.append((str(dll_path), '.'))
+VC_RUNTIME_DLL_NAMES = (
+    "concrt140.dll",
+    "msvcp140.dll",
+    "msvcp140_1.dll",
+    "msvcp140_2.dll",
+    "msvcp140_atomic_wait.dll",
+    "msvcp140_codecvt_ids.dll",
+    "vccorlib140.dll",
+    "vcruntime140.dll",
+    "vcruntime140_1.dll",
+    "vcamp140.dll",
+    "vcomp140.dll",
+)
+
+
+def collect_vc_runtime_binaries() -> list[tuple[str, str]]:
+    python_root = Path(sys.base_prefix)
+    search_roots = [
+        python_root,
+        python_root / "DLLs",
+        Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32",
+    ]
+
+    runtime_binaries: list[tuple[str, str]] = []
+    seen_paths: set[Path] = set()
+    for dll_name in VC_RUNTIME_DLL_NAMES:
+        for root in search_roots:
+            dll_path = root / dll_name
+            if not dll_path.exists():
+                continue
+
+            resolved_path = dll_path.resolve()
+            if resolved_path in seen_paths:
+                continue
+
+            runtime_binaries.append((str(resolved_path), "."))
+            seen_paths.add(resolved_path)
+            break
+
+    return runtime_binaries
+
+
+runtime_binaries = collect_vc_runtime_binaries()
 
 
 a = Analysis(
