@@ -35,6 +35,7 @@ RESOURCE_DIR = (
 MONITORS_PATH = RESOURCE_DIR / "data" / "monitors.json"
 STATE_PATH = DATA_DIR / "state.json"
 TEST_DUMMY_ITEMS_PATH = DATA_DIR / "test_dummy_items.json"
+OPEN_LOG_SIGNAL_PATH = DATA_DIR / "open_log.signal"
 LOG_PATH = BASE_DIR / "watch.log"
 
 

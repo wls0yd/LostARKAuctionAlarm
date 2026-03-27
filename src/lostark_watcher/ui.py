@@ -26,6 +26,7 @@ from .runtime_context import (
     DEFAULT_UPDATE_REPO,
     TEST_DUMMY_ITEMS_PATH,
     LOG_PATH,
+    OPEN_LOG_SIGNAL_PATH,
     TOKEN,
     is_frozen_executable,
 )
@@ -41,6 +42,8 @@ from .updater import (
 
 
 class WatcherPopup:
+    LOG_WINDOW_INITIAL_READ_MAX_BYTES = 200_000
+    OPEN_LOG_SIGNAL_POLL_MS = 50
     DEFAULT_TEST_DUMMY_ITEMS = {
         "monitor": {
             "key": "necklace_damage",
@@ -135,12 +138,15 @@ class WatcherPopup:
         self.log_window: tk.Toplevel | None = None
         self.log_text: scrolledtext.ScrolledText | None = None
         self.log_force_scroll_bottom_once = False
+        self.log_read_position = 0
+        self.log_initial_tail_loaded = False
         self.update_thread: threading.Thread | None = None
 
         self._build_layout()
         self._update_buttons()
         self.root.protocol("WM_DELETE_WINDOW", self._handle_close)
         self.root.after(1000, self._refresh_runtime_state)
+        self.root.after(self.OPEN_LOG_SIGNAL_POLL_MS, self._poll_open_log_signal)
         self.root.after(1500, self._start_auto_update_check)
 
     def _start_auto_update_check(self) -> None:
@@ -792,6 +798,8 @@ class WatcherPopup:
 
         self.log_window.protocol("WM_DELETE_WINDOW", self._close_log_window)
         self.log_force_scroll_bottom_once = True
+        self.log_read_position = 0
+        self.log_initial_tail_loaded = False
         self._refresh_log_window()
 
     def _emit_test_listing_log(self, _event: tk.Event) -> str:
@@ -863,6 +871,8 @@ class WatcherPopup:
         self.log_window.destroy()
         self.log_window = None
         self.log_text = None
+        self.log_read_position = 0
+        self.log_initial_tail_loaded = False
 
     def _refresh_log_window(self) -> None:
         if self.log_window is None or not self.log_window.winfo_exists() or self.log_text is None:
@@ -875,18 +885,56 @@ class WatcherPopup:
         if self.log_force_scroll_bottom_once:
             should_follow_tail = True
 
-        text = ""
-        if LOG_PATH.exists():
-            text = LOG_PATH.read_text(encoding="utf-8", errors="replace")
+        if not LOG_PATH.exists():
+            self.log_read_position = 0
+            self.log_initial_tail_loaded = True
+            self.log_text.configure(state="normal")
+            self.log_text.delete("1.0", tk.END)
+            self.log_text.configure(state="disabled")
+            self.log_window.after(1000, self._refresh_log_window)
+            return
 
-        self.log_text.configure(state="normal")
-        self.log_text.delete("1.0", tk.END)
-        self.log_text.insert(tk.END, text)
+        current_size = LOG_PATH.stat().st_size
+        if not self.log_initial_tail_loaded:
+            start_offset = max(
+                0,
+                current_size - self.LOG_WINDOW_INITIAL_READ_MAX_BYTES,
+            )
+            with LOG_PATH.open("rb") as log_fp:
+                log_fp.seek(start_offset)
+                chunk = log_fp.read()
+            text = chunk.decode("utf-8", errors="replace")
+            if start_offset > 0:
+                text = "...(최근 로그만 표시 중)\n" + text
+
+            self.log_text.configure(state="normal")
+            self.log_text.delete("1.0", tk.END)
+            self.log_text.insert(tk.END, text)
+            self.log_text.configure(state="disabled")
+            self.log_read_position = current_size
+            self.log_initial_tail_loaded = True
+        else:
+            if current_size < self.log_read_position:
+                self.log_read_position = 0
+                self.log_text.configure(state="normal")
+                self.log_text.delete("1.0", tk.END)
+                self.log_text.configure(state="disabled")
+
+            if current_size > self.log_read_position:
+                with LOG_PATH.open("rb") as log_fp:
+                    log_fp.seek(self.log_read_position)
+                    chunk = log_fp.read()
+                append_text = chunk.decode("utf-8", errors="replace")
+                if append_text:
+                    self.log_text.configure(state="normal")
+                    self.log_text.insert(tk.END, append_text)
+                    self.log_text.configure(state="disabled")
+                self.log_read_position = current_size
+
         if should_follow_tail:
             self.log_text.see(tk.END)
         elif len(yview_before) == 2:
             self.log_text.yview_moveto(yview_before[0])
-        self.log_text.configure(state="disabled")
         self.log_force_scroll_bottom_once = False
 
         self.log_window.after(1000, self._refresh_log_window)
@@ -988,6 +1036,27 @@ class WatcherPopup:
                 self.status_var.set("대기 중")
         self._update_buttons()
         self.root.after(1000, self._refresh_runtime_state)
+
+    def _poll_open_log_signal(self) -> None:
+        self._consume_open_log_signal()
+        self.root.after(self.OPEN_LOG_SIGNAL_POLL_MS, self._poll_open_log_signal)
+
+    def _consume_open_log_signal(self) -> None:
+        if not OPEN_LOG_SIGNAL_PATH.exists():
+            return
+
+        try:
+            OPEN_LOG_SIGNAL_PATH.unlink(missing_ok=True)
+        except OSError as exc:
+            log(f"Failed to consume open-log signal: {exc}")
+            return
+
+        self._open_log_window()
+        if self.log_window is not None and self.log_window.winfo_exists():
+            self.log_window.deiconify()
+            self.log_window.lift()
+            self.log_window.focus_force()
+        self.status_var.set("알림 클릭으로 로그 창 열림")
 
     def _start_watch(self) -> None:
         if self._is_running():

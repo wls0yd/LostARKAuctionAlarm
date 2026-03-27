@@ -1,4 +1,5 @@
 import json
+import subprocess
 import threading
 import time
 from urllib import error, request
@@ -7,7 +8,7 @@ import winsound
 
 from .app_logging import log
 from .monitors import build_monitor_runtime_config
-from .runtime_context import API_URL, DATA_DIR, TOKEN
+from .runtime_context import API_URL, DATA_DIR, OPEN_LOG_SIGNAL_PATH, TOKEN
 from .state import load_app_settings, load_state, save_state
 
 
@@ -111,6 +112,88 @@ def summarize(item: dict, fixed_options: set[str]) -> str:
     )
 
 
+def _to_powershell_single_quoted_literal(value: str) -> str:
+    return (value or "").replace("'", "''")
+
+
+def send_windows_notification(label: str, new_items: list[dict]) -> None:
+    count = len(new_items)
+    if count <= 0:
+        return
+
+    title = "LostArkWatcher 새 악세 발견"
+    first_item = new_items[0]
+    first_name = str(first_item.get("Name", "알 수 없는 악세"))
+    first_price = first_item.get("AuctionInfo", {}).get("BuyPrice", "?")
+    extra_count = count - 1
+    if extra_count > 0:
+        message = (
+            f"[{label}] {first_name} (즉구 {first_price}) 외 {extra_count}개"
+        )
+    else:
+        message = f"[{label}] {first_name} (즉구 {first_price})"
+
+    safe_title = _to_powershell_single_quoted_literal(title)
+    safe_message = _to_powershell_single_quoted_literal(message)
+    safe_signal_path = _to_powershell_single_quoted_literal(str(OPEN_LOG_SIGNAL_PATH))
+    balloon_script = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "Add-Type -AssemblyName System.Drawing; "
+        f"$title = '{safe_title}'; "
+        f"$body = '{safe_message}'; "
+        f"$signalPath = '{safe_signal_path}'; "
+        "$signalDir = Split-Path -Parent $signalPath; "
+        "if ($signalDir -and -not (Test-Path -LiteralPath $signalDir)) { "
+        "  New-Item -ItemType Directory -Path $signalDir -Force | Out-Null "
+        "}; "
+        "$notify = New-Object System.Windows.Forms.NotifyIcon; "
+        "$notify.Icon = [System.Drawing.SystemIcons]::Information; "
+        "$notify.BalloonTipTitle = $title; "
+        "$notify.BalloonTipText = $body; "
+        "$notify.Visible = $true; "
+        "$clicked = $false; "
+        "$handler = [System.EventHandler]{ param($sender, $eventArgs) "
+        "  $script:clicked = $true; "
+        "  [System.IO.File]::WriteAllText(" 
+        "    $signalPath, "
+        "    (Get-Date -Format o), "
+        "    [System.Text.Encoding]::UTF8"
+        "  ) "
+        "}; "
+        "$notify.add_BalloonTipClicked($handler); "
+        "$notify.ShowBalloonTip(5000); "
+        "for ($i = 0; $i -lt 260; $i++) { "
+        "  [System.Windows.Forms.Application]::DoEvents(); "
+        "  if ($script:clicked) { break }; "
+        "  Start-Sleep -Milliseconds 20 "
+        "}; "
+        "$notify.remove_BalloonTipClicked($handler); "
+        "$notify.Dispose()"
+    )
+
+    def run_powershell_async(command_script: str) -> None:
+        subprocess.Popen(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                command_script,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+
+    try:
+        run_powershell_async(balloon_script)
+    except (OSError, subprocess.SubprocessError) as exc:
+        log(f"Windows balloon notification failed: {exc}")
+
+
 def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
     def play_alert_sound() -> None:
         try:
@@ -136,6 +219,8 @@ def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
     for _ in range(3):
         play_alert_sound()
         time.sleep(0.2)
+
+    send_windows_notification(label, new_items)
 
     log(f"NEW_LISTINGS [{label}] {len(new_items)} found")
     for item in new_items:
