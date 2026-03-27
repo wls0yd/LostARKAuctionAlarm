@@ -136,6 +136,7 @@ def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
     for _ in range(3):
         play_alert_sound()
         time.sleep(0.2)
+
     log(f"NEW_LISTINGS [{label}] {len(new_items)} found")
     for item in new_items:
         log("  " + summarize(item, fixed_options))
@@ -160,6 +161,7 @@ def run_watcher_loop(
     token: str,
     poll_seconds: int,
     monitors: list[dict],
+    reset_event: threading.Event | None = None,
 ) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -168,6 +170,7 @@ def run_watcher_loop(
         return
 
     state = load_state()
+    pending_baseline_alert = bool(state.get("alert_on_next_baseline", False))
     seen_by_monitor = {
         monitor["key"]: set(state.get("seen_by_monitor", {}).get(monitor["key"], []))
         for monitor in monitors
@@ -179,16 +182,31 @@ def run_watcher_loop(
 
     while not stop_event.is_set():
         try:
+            if reset_event is not None and reset_event.is_set():
+                for seen in seen_by_monitor.values():
+                    seen.clear()
+                pending_baseline_alert = True
+                save_state(seen_by_monitor, alert_on_next_baseline=True)
+                reset_event.clear()
+                log("Found accessory cache reset requested by user")
+
             for monitor in monitors:
                 items = fetch_items(monitor["query"], token)
                 signatures = {item_signature(item) for item in items}
                 seen = seen_by_monitor[monitor["key"]]
                 if not seen:
+                    if pending_baseline_alert and items:
+                        notify(monitor["label"], monitor["fixed_options"], items)
                     seen_by_monitor[monitor["key"]] = signatures
-                    save_state(seen_by_monitor)
-                    log(
-                        f"Baseline captured [{monitor['label']}]: {len(signatures)} listing(s)"
-                    )
+                    save_state(seen_by_monitor, alert_on_next_baseline=pending_baseline_alert)
+                    if pending_baseline_alert and items:
+                        log(
+                            f"Baseline captured with alert [{monitor['label']}]: {len(signatures)} listing(s)"
+                        )
+                    else:
+                        log(
+                            f"Baseline captured [{monitor['label']}]: {len(signatures)} listing(s)"
+                        )
                     continue
 
                 new_items = [item for item in items if item_signature(item) not in seen]
@@ -203,6 +221,10 @@ def run_watcher_loop(
                         f"No new listings [{monitor['label']}]. "
                         f"Current matching count: {len(items)}"
                     )
+
+            if pending_baseline_alert:
+                pending_baseline_alert = False
+                save_state(seen_by_monitor, alert_on_next_baseline=False)
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             log(f"HTTP error {exc.code}: {detail}")

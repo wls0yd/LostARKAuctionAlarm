@@ -131,6 +131,7 @@ class WatcherPopup:
 
         self.worker_thread: threading.Thread | None = None
         self.stop_event: threading.Event | None = None
+        self.reset_event: threading.Event | None = None
         self.log_window: tk.Toplevel | None = None
         self.log_text: scrolledtext.ScrolledText | None = None
         self.update_thread: threading.Thread | None = None
@@ -280,11 +281,19 @@ class WatcherPopup:
 
         self.clear_button = tk.Button(
             button_grid,
-            text="탐색 기록 초기화",
+            text="찾은 악세 초기화",
             width=18,
             command=self._clear_seen_history,
         )
-        self.clear_button.grid(row=3, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
+        self.clear_button.grid(row=3, column=0, padx=4, pady=4, sticky="ew")
+
+        self.clear_log_button = tk.Button(
+            button_grid,
+            text="로그 초기화",
+            width=18,
+            command=self._clear_log_history,
+        )
+        self.clear_log_button.grid(row=3, column=1, padx=4, pady=4, sticky="ew")
 
         button_grid.grid_columnconfigure(0, weight=1)
         button_grid.grid_columnconfigure(1, weight=1)
@@ -884,15 +893,27 @@ class WatcherPopup:
 
     def _clear_seen_history(self) -> None:
         if self._is_running():
-            messagebox.showerror(
-                "실행 중",
-                "탐색 기록을 초기화하려면 먼저 탐색을 종료해주세요.",
+            if self.reset_event is None:
+                messagebox.showerror(
+                    "초기화 실패",
+                    "초기화 이벤트를 준비하지 못했습니다. 탐색을 다시 시작해주세요.",
+                )
+                return
+
+            self.reset_event.set()
+            self.status_var.set("찾은 악세 초기화 요청됨")
+            log("Found accessory cache reset requested from UI")
+            messagebox.showinfo(
+                "초기화 요청 완료",
+                "현재 파악된/찾은 악세를 초기화 요청했습니다.\n"
+                "다음 탐색 주기에 새 기준으로 다시 저장됩니다.",
             )
             return
 
         confirmed = messagebox.askyesno(
-            "탐색 기록 초기화",
-            "저장된 탐색 기록을 초기화할까요?\nAPI 설정과 악세 설정은 유지됩니다.",
+            "찾은 악세 초기화",
+            "현재까지 저장된 찾은 악세 기록을 초기화할까요?\n"
+            "API 설정과 악세 설정은 유지됩니다.",
         )
         if not confirmed:
             return
@@ -911,7 +932,33 @@ class WatcherPopup:
         log("Saved watch history cleared by user")
         messagebox.showinfo(
             "초기화 완료",
-            "탐색 기록을 초기화했습니다. 다음 탐색부터 새 기준으로 저장됩니다.",
+            "찾은 악세 기록을 초기화했습니다. 다음 탐색부터 새 기준으로 저장됩니다.",
+        )
+
+    def _clear_log_history(self) -> None:
+        confirmed = messagebox.askyesno(
+            "로그 초기화",
+            "watch.log 내용을 초기화할까요?",
+        )
+        if not confirmed:
+            return
+
+        try:
+            LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            LOG_PATH.write_text("", encoding="utf-8")
+        except OSError as exc:
+            log(f"Failed to clear watch log: {exc}")
+            messagebox.showerror(
+                "초기화 실패",
+                "로그 초기화에 실패했습니다. 파일 권한이나 사용 중 여부를 확인해주세요.",
+            )
+            return
+
+        self.status_var.set("로그 초기화됨")
+        self._refresh_log_window()
+        messagebox.showinfo(
+            "초기화 완료",
+            "로그를 초기화했습니다.",
         )
 
     def _update_buttons(self) -> None:
@@ -950,9 +997,10 @@ class WatcherPopup:
             return
 
         self.stop_event = threading.Event()
+        self.reset_event = threading.Event()
         self.worker_thread = threading.Thread(
             target=run_watcher_loop,
-            args=(self.stop_event, normalized_token, poll_seconds, monitors),
+            args=(self.stop_event, normalized_token, poll_seconds, monitors, self.reset_event),
             daemon=True,
         )
         self.worker_thread.start()
@@ -967,6 +1015,7 @@ class WatcherPopup:
         worker = self.worker_thread
         if worker is not None:
             worker.join(timeout=2)
+        self.reset_event = None
         self.status_var.set("탐색 종료됨")
         self._update_buttons()
 

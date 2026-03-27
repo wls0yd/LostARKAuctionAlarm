@@ -46,17 +46,31 @@ def load_state() -> dict:
     return {"seen_by_monitor": {"slot_1": legacy_seen}}
 
 
-def save_state(signatures_by_monitor: dict[str, set[str]]) -> None:
+def save_state(
+    signatures_by_monitor: dict[str, set[str]],
+    alert_on_next_baseline: bool | None = None,
+) -> None:
     with STATE_LOCK:
         state = load_state()
         app_settings = state.get("app_settings") if isinstance(state, dict) else None
-        payload = {
+        existing_alert_flag = bool(
+            state.get("alert_on_next_baseline", False)
+        ) if isinstance(state, dict) else False
+        payload: dict[str, object] = {
             "seen_by_monitor": {
                 key: sorted(values) for key, values in signatures_by_monitor.items()
             }
         }
         if isinstance(app_settings, dict):
             payload["app_settings"] = app_settings
+
+        resolved_alert_flag = (
+            existing_alert_flag
+            if alert_on_next_baseline is None
+            else bool(alert_on_next_baseline)
+        )
+        if resolved_alert_flag:
+            payload["alert_on_next_baseline"] = True
 
         write_state(payload)
 
@@ -65,9 +79,10 @@ def clear_seen_by_monitor() -> None:
     with STATE_LOCK:
         state = load_state()
         app_settings = state.get("app_settings") if isinstance(state, dict) else None
-        payload = {"seen_by_monitor": {}}
+        payload: dict[str, object] = {"seen_by_monitor": {}}
         if isinstance(app_settings, dict):
             payload["app_settings"] = app_settings
+        payload["alert_on_next_baseline"] = True
 
         write_state(payload)
 
