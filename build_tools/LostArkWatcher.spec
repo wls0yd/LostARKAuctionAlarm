@@ -1,10 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+import sys
+
+
+python_root = Path(sys.base_prefix)
+runtime_binaries = []
+for dll_name in ("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll"):
+    dll_path = python_root / dll_name
+    if dll_path.exists():
+        runtime_binaries.append((str(dll_path), '.'))
+
 
 a = Analysis(
     ['..\\src\\watcher.py'],
     pathex=[],
-    binaries=[],
+    binaries=runtime_binaries,
     datas=[
         ('..\\data\\monitors.json', 'data'),
         ('..\\data\\app_version.txt', 'data'),
@@ -30,7 +41,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
