@@ -88,6 +88,22 @@ def extra_option_text(item: dict, fixed_options: set[str]) -> str:
     return ", ".join(extra_options)
 
 
+def matched_option_text(item: dict, fixed_options: set[str]) -> str:
+    normalized_fixed = {normalize_option_match_key(name) for name in fixed_options}
+    matched_options: list[str] = []
+    for option in item.get("Options", []):
+        if option.get("Type") != "ACCESSORY_UPGRADE":
+            continue
+        option_name = normalize_option_name(option.get("OptionName", ""))
+        if normalize_option_match_key(option_name) not in normalized_fixed:
+            continue
+        matched_options.append(f"{option_name} {format_option_value(option)}")
+
+    if not matched_options:
+        return "없음"
+    return ", ".join(matched_options)
+
+
 def item_signature(item: dict) -> str:
     info = item.get("AuctionInfo", {})
     return "|".join(
@@ -107,8 +123,11 @@ def summarize(item: dict, fixed_options: set[str]) -> str:
     info = item.get("AuctionInfo", {})
     return (
         f"{item.get('Name')} | price={info.get('BuyPrice')} "
+        f"| quality={item.get('GradeQuality')} "
         f"| trades={info.get('TradeAllowCount')} "
-        f"| stat={stat_value(item)} | extra={extra_option_text(item, fixed_options)} "
+        f"| stat={stat_value(item)} "
+        f"| matched={matched_option_text(item, fixed_options)} "
+        f"| extra={extra_option_text(item, fixed_options)}"
     )
 
 

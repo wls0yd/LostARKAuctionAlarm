@@ -165,16 +165,38 @@ def merge_custom_monitors(saved_monitors: list | None, slot_count: int | None = 
     return merged
 
 
+def _option_value_label(option_key: str, value: int) -> str:
+    option_payload = OPTION_DEFINITIONS[option_key]
+    values = option_payload["values"]
+    value_labels = option_payload["value_labels"]
+    for index, candidate in enumerate(values):
+        if int(candidate) == value:
+            return str(value_labels[index])
+    return str(value)
+
+
+def _monitor_option_label(option_key: str, value: int) -> str:
+    option_label = str(OPTION_DEFINITIONS[option_key]["label"])
+    if option_key == "none":
+        return option_label
+    return f"{option_label}({_option_value_label(option_key, value)})"
+
+
 def monitor_label(custom_monitor: dict) -> str:
     part_key = custom_monitor["part"]
     option_1 = custom_monitor["option_1"]
     option_2 = custom_monitor["option_2"]
     option_3 = custom_monitor["option_3"]
     part_label = PART_DEFINITIONS[part_key]["label"]
-    option_1_label = OPTION_DEFINITIONS[option_1]["label"]
-    option_2_label = OPTION_DEFINITIONS[option_2]["label"]
-    option_3_label = OPTION_DEFINITIONS[option_3]["label"]
-    return f"{part_label} {option_1_label}/{option_2_label}/{option_3_label}"
+    labels = [
+        _monitor_option_label(option_1, int(custom_monitor["value_1"])),
+        _monitor_option_label(option_2, int(custom_monitor["value_2"])),
+        _monitor_option_label(option_3, int(custom_monitor["value_3"])),
+    ]
+    quality_value = int(custom_monitor["quality_value"])
+    if quality_value > 0:
+        labels.append(f"품질≥{quality_value}")
+    return f"{part_label} {'/'.join(labels)}"
 
 
 def monitor_fixed_options(custom_monitor: dict) -> set[str]:
