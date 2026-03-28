@@ -241,9 +241,8 @@ def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
 
     send_windows_notification(label, new_items)
 
-    log(f"NEW_LISTINGS {len(new_items)} found")
     for item in new_items:
-        log("  " + summarize(item, fixed_options))
+        log("NEW_LISTING | " + summarize(item, fixed_options))
 
 
 def normalize_token(token: str) -> str:
