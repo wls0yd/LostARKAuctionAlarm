@@ -193,9 +193,6 @@ def monitor_label(custom_monitor: dict) -> str:
         _monitor_option_label(option_2, int(custom_monitor["value_2"])),
         _monitor_option_label(option_3, int(custom_monitor["value_3"])),
     ]
-    quality_value = int(custom_monitor["quality_value"])
-    if quality_value > 0:
-        labels.append(f"품질≥{quality_value}")
     return f"{part_label} {'/'.join(labels)}"
 
 
