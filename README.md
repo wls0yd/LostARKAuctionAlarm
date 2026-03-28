@@ -22,6 +22,10 @@
 - `LOSTARK_UPDATE_REF`: 조회할 릴리즈 식별자, 기본값 `latest` (예: `v1.2.3` 태그 릴리즈를 강제로 보고 싶으면 `v1.2.3` 지정)
 - `LOSTARK_UPDATE_EXE_PATH`: Release asset 파일명, 기본값 `LostArkWatcher.exe`
 
+## 라이선스
+
+이 저장소는 [MIT License](./LICENSE)를 따릅니다.
+
 ## 다른 사람들을 위한 빠른 시작 가이드
 
 ### 1) 먼저 준비할 것
