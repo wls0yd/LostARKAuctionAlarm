@@ -827,7 +827,7 @@ class WatcherPopup:
         for item in items:
             if not isinstance(item, dict):
                 continue
-            log("  " + summarize(item, fixed_options))
+            log(f"  [{label}] " + summarize(item, fixed_options))
 
         self._refresh_log_window()
         return "break"

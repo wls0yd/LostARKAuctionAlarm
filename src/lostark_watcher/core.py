@@ -243,7 +243,7 @@ def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
 
     log(f"NEW_LISTINGS [{label}] {len(new_items)} found")
     for item in new_items:
-        log("  " + summarize(item, fixed_options))
+        log(f"  [{label}] " + summarize(item, fixed_options))
 
 
 def normalize_token(token: str) -> str:
