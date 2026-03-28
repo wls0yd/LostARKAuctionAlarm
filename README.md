@@ -1,4 +1,4 @@
-# LostArkWatcher
+# LOSTARK 악세 알람
 
 실행 파일(`.exe`)은 Git 저장소가 아니라 **GitHub Releases**로 배포합니다.
 
