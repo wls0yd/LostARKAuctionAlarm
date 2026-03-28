@@ -122,11 +122,11 @@ def item_signature(item: dict) -> str:
 def summarize(item: dict, fixed_options: set[str]) -> str:
     info = item.get("AuctionInfo", {})
     return (
-        f"{item.get('Name')} | price={info.get('BuyPrice')} "
+        f"matched={matched_option_text(item, fixed_options)} "
+        f"| price={info.get('BuyPrice')} "
         f"| quality={item.get('GradeQuality')} "
         f"| trades={info.get('TradeAllowCount')} "
         f"| stat={stat_value(item)} "
-        f"| matched={matched_option_text(item, fixed_options)} "
         f"| extra={extra_option_text(item, fixed_options)}"
     )
 
@@ -241,9 +241,9 @@ def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
 
     send_windows_notification(label, new_items)
 
-    log(f"NEW_LISTINGS [{label}] {len(new_items)} found")
+    log(f"NEW_LISTINGS {len(new_items)} found")
     for item in new_items:
-        log(f"  [{label}] " + summarize(item, fixed_options))
+        log("  " + summarize(item, fixed_options))
 
 
 def normalize_token(token: str) -> str:

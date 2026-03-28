@@ -823,11 +823,11 @@ class WatcherPopup:
         if not isinstance(items, list):
             items = []
 
-        log(f"TEST_DUMMY_LISTING [{label}] {len(items)} found")
+        log(f"TEST_DUMMY_LISTING {len(items)} found")
         for item in items:
             if not isinstance(item, dict):
                 continue
-            log(f"  [{label}] " + summarize(item, fixed_options))
+            log("  " + summarize(item, fixed_options))
 
         self._refresh_log_window()
         return "break"
