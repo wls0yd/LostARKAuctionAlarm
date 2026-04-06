@@ -196,18 +196,27 @@ def monitor_label(custom_monitor: dict) -> str:
     return f"{part_label} {'/'.join(labels)}"
 
 
-def monitor_fixed_options(custom_monitor: dict) -> set[str]:
-    labels = []
-    for option_key in (
-        custom_monitor["option_1"],
-        custom_monitor["option_2"],
-        custom_monitor["option_3"],
-    ):
+def monitor_fixed_options(custom_monitor: dict) -> list[dict]:
+    fixed_options: list[dict] = []
+    option_filters = (
+        (custom_monitor["option_1"], custom_monitor["value_1"]),
+        (custom_monitor["option_2"], custom_monitor["value_2"]),
+        (custom_monitor["option_3"], custom_monitor["value_3"]),
+    )
+    for option_key, option_value in option_filters:
         option_payload = OPTION_DEFINITIONS[option_key]
         if bool(option_payload.get("skip_query", False)):
             continue
-        labels.append(str(option_payload["label"]))
-    return set(labels)
+        resolved_value = int(option_value)
+        fixed_options.append(
+            {
+                "label": str(option_payload["label"]),
+                "value": resolved_value,
+                "value_label": _option_value_label(option_key, resolved_value),
+                "is_percentage": bool(option_payload.get("display_percent", False)),
+            }
+        )
+    return fixed_options
 
 
 def build_monitor_query(custom_monitor: dict) -> dict:

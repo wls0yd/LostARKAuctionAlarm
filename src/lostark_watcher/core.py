@@ -59,7 +59,12 @@ def normalize_option_name(name: str) -> str:
 
 def normalize_option_match_key(name: str) -> str:
     normalized = normalize_option_name(name)
-    normalized = normalized.replace(",", "").replace(" ", "")
+    normalized = (
+        normalized.replace(",", "")
+        .replace(" ", "")
+        .replace("%", "")
+        .replace("+", "")
+    )
     if normalized.endswith("증가"):
         normalized = normalized.removesuffix("증가")
     return normalized
@@ -72,14 +77,67 @@ def format_option_value(option: dict) -> str:
     return f"{value}%" if option.get("IsValuePercentage") else str(value)
 
 
-def extra_option_text(item: dict, fixed_options: set[str]) -> str:
-    normalized_fixed = {normalize_option_match_key(name) for name in fixed_options}
+def _normalize_fixed_option_specs(fixed_options: list[dict] | list[str] | set[str]) -> list[dict]:
+    normalized_specs: list[dict] = []
+    for entry in fixed_options:
+        if isinstance(entry, dict):
+            label = normalize_option_name(str(entry.get("label", "")))
+            if not label:
+                continue
+            normalized_specs.append(
+                {
+                    "label": label,
+                    "match_key": normalize_option_match_key(label),
+                    "is_percentage": bool(entry.get("is_percentage", False)),
+                    "value": int(entry["value"]) if isinstance(entry.get("value"), int) else None,
+                    "value_label": str(entry.get("value_label", "")).strip(),
+                }
+            )
+            continue
+
+        if not isinstance(entry, str):
+            continue
+        label = normalize_option_name(entry)
+        if not label:
+            continue
+        inferred_is_percentage = "%" in label
+        normalized_specs.append(
+            {
+                "label": label,
+                "match_key": normalize_option_match_key(label),
+                "is_percentage": inferred_is_percentage,
+                "value": None,
+                "value_label": "",
+            }
+        )
+    return normalized_specs
+
+
+def _item_option_match_key(option: dict) -> tuple[str, bool]:
+    option_name = normalize_option_name(str(option.get("OptionName", "")))
+    return normalize_option_match_key(option_name), bool(option.get("IsValuePercentage"))
+
+
+def _option_value_for_match(option: dict) -> int | None:
+    value = option.get("Value")
+    if not isinstance(value, (int, float)):
+        return None
+    if option.get("IsValuePercentage"):
+        return int(round(float(value) * 100))
+    return int(round(float(value)))
+
+
+def extra_option_text(item: dict, fixed_options: list[dict] | list[str] | set[str]) -> str:
+    normalized_fixed = {
+        (spec["match_key"], spec["is_percentage"])
+        for spec in _normalize_fixed_option_specs(fixed_options)
+    }
     extra_options: list[str] = []
     for option in item.get("Options", []):
         if option.get("Type") != "ACCESSORY_UPGRADE":
             continue
-        option_name = normalize_option_name(option.get("OptionName", ""))
-        if normalize_option_match_key(option_name) in normalized_fixed:
+        option_name = normalize_option_name(str(option.get("OptionName", "")))
+        if _item_option_match_key(option) in normalized_fixed:
             continue
         extra_options.append(f"{option_name} {format_option_value(option)}")
 
@@ -88,16 +146,29 @@ def extra_option_text(item: dict, fixed_options: set[str]) -> str:
     return ", ".join(extra_options)
 
 
-def matched_option_text(item: dict, fixed_options: set[str]) -> str:
-    normalized_fixed = {normalize_option_match_key(name) for name in fixed_options}
+def matched_option_text(item: dict, fixed_options: list[dict] | list[str] | set[str]) -> str:
+    fixed_specs = _normalize_fixed_option_specs(fixed_options)
+    matched_by_key = {
+        _item_option_match_key(option): option
+        for option in item.get("Options", [])
+        if option.get("Type") == "ACCESSORY_UPGRADE"
+    }
     matched_options: list[str] = []
-    for option in item.get("Options", []):
-        if option.get("Type") != "ACCESSORY_UPGRADE":
+    for fixed_spec in fixed_specs:
+        match_key = (fixed_spec["match_key"], fixed_spec["is_percentage"])
+        option = matched_by_key.get(match_key)
+        if option is None:
             continue
-        option_name = normalize_option_name(option.get("OptionName", ""))
-        if normalize_option_match_key(option_name) not in normalized_fixed:
+        expected_value = fixed_spec["value"]
+        actual_value = _option_value_for_match(option)
+        if expected_value is not None and actual_value != expected_value:
             continue
-        matched_options.append(f"{option_name} {format_option_value(option)}")
+        option_label = fixed_spec["label"]
+        value_label = fixed_spec["value_label"]
+        if value_label:
+            matched_options.append(f"{option_label} {value_label}")
+            continue
+        matched_options.append(f"{option_label} {format_option_value(option)}")
 
     if not matched_options:
         return "없음"
@@ -119,7 +190,7 @@ def item_signature(item: dict) -> str:
     )
 
 
-def summarize(item: dict, fixed_options: set[str]) -> str:
+def summarize(item: dict, fixed_options: list[dict] | list[str] | set[str]) -> str:
     info = item.get("AuctionInfo", {})
     return (
         f"matched={matched_option_text(item, fixed_options)} "
@@ -213,7 +284,11 @@ def send_windows_notification(label: str, new_items: list[dict]) -> None:
         log(f"Windows balloon notification failed: {exc}")
 
 
-def notify(label: str, fixed_options: set[str], new_items: list[dict]) -> None:
+def notify(
+    label: str,
+    fixed_options: list[dict] | list[str] | set[str],
+    new_items: list[dict],
+) -> None:
     def play_alert_sound() -> None:
         try:
             winsound.PlaySound(

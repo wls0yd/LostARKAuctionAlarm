@@ -832,14 +832,14 @@ class WatcherPopup:
         label = str(
             monitor_payload.get("label", payload.get("label", "Ctrl+T"))
         ).strip() or "Ctrl+T"
-        fixed_options = {
+        fixed_options = [
             str(option_name)
             for option_name in monitor_payload.get(
                 "fixed_options",
                 payload.get("fixed_options", []),
             )
             if isinstance(option_name, str) and option_name.strip()
-        }
+        ]
         items = payload.get("items", [])
         if not isinstance(items, list):
             items = []
