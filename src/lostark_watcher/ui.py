@@ -691,35 +691,10 @@ class WatcherPopup:
                 "quality_value": 0,
             }
 
-        def update_slot_buttons() -> None:
-            decrease_slot_button.configure(state="disabled" if current_slot_count <= 1 else "normal")
-            increase_slot_button.configure(state="disabled" if current_slot_count >= 10 else "normal")
-
-        def adjust_slot_count(delta: int) -> None:
-            nonlocal current_slot_count
-            next_count = clamp_monitor_slots(current_slot_count + delta)
-            if next_count == current_slot_count:
-                return
-
-            if next_count > current_slot_count:
-                while len(draft_monitors) < next_count:
-                    draft_monitors.append(build_empty_slot_monitor(len(draft_monitors)))
-
-            current_slot_count = next_count
-            slot_count_var.set(str(current_slot_count))
-            render_sections(current_slot_count)
-            update_slot_buttons()
-
-        decrease_slot_button.configure(command=lambda: adjust_slot_count(-1))
-        increase_slot_button.configure(command=lambda: adjust_slot_count(1))
-        render_sections(current_slot_count)
-        update_slot_buttons()
-
-        def save() -> None:
-            parsed_count = current_slot_count
+        def collect_resolved_monitors(require_enabled: bool) -> list[dict] | None:
             if not row_states:
                 messagebox.showerror("입력 오류", "검색 슬롯을 1개 이상 설정해주세요.")
-                return
+                return None
 
             resolved_monitors: list[dict] = []
             for row_state in row_states:
@@ -731,7 +706,7 @@ class WatcherPopup:
                 selected_real_options = [key for key in (option_1, option_2, option_3) if key != "none"]
                 if len(set(selected_real_options)) < len(selected_real_options):
                     messagebox.showerror("입력 오류", "옵션1/2/3은 서로 달라야 합니다.")
-                    return
+                    return None
 
                 try:
                     quality_value = quality_value_from_inputs(
@@ -740,7 +715,7 @@ class WatcherPopup:
                     )
                 except ValueError as exc:
                     messagebox.showerror("입력 오류", str(exc))
-                    return
+                    return None
 
                 resolved_monitors.append(
                     {
@@ -757,8 +732,54 @@ class WatcherPopup:
                     }
                 )
 
-            if not any(monitor["enabled"] for monitor in resolved_monitors):
+            if require_enabled and not any(monitor["enabled"] for monitor in resolved_monitors):
                 messagebox.showerror("입력 오류", "최소 1개 이상의 악세 조건을 선택해주세요.")
+                return None
+
+            return resolved_monitors
+
+        def update_slot_buttons() -> None:
+            decrease_slot_button.configure(state="disabled" if current_slot_count <= 1 else "normal")
+            increase_slot_button.configure(state="disabled" if current_slot_count >= 10 else "normal")
+
+        def adjust_slot_count(delta: int) -> None:
+            nonlocal current_slot_count, draft_monitors
+            next_count = clamp_monitor_slots(current_slot_count + delta)
+            if next_count == current_slot_count:
+                return
+
+            resolved_monitors = collect_resolved_monitors(require_enabled=False)
+            if resolved_monitors is None:
+                return
+
+            draft_monitors = merge_custom_monitors(resolved_monitors, current_slot_count)
+
+            if next_count > current_slot_count:
+                while len(draft_monitors) < next_count:
+                    draft_monitors.append(build_empty_slot_monitor(len(draft_monitors)))
+
+            current_slot_count = next_count
+            slot_count_var.set(str(current_slot_count))
+            self.monitor_slot_count = current_slot_count
+            self.custom_monitors = merge_custom_monitors(draft_monitors, self.monitor_slot_count)
+            save_app_settings(
+                self.token_var.get(),
+                self.interval_var.get(),
+                self.custom_monitors,
+                self.monitor_slot_count,
+            )
+            render_sections(current_slot_count)
+            update_slot_buttons()
+
+        decrease_slot_button.configure(command=lambda: adjust_slot_count(-1))
+        increase_slot_button.configure(command=lambda: adjust_slot_count(1))
+        render_sections(current_slot_count)
+        update_slot_buttons()
+
+        def save() -> None:
+            parsed_count = current_slot_count
+            resolved_monitors = collect_resolved_monitors(require_enabled=True)
+            if resolved_monitors is None:
                 return
 
             self.monitor_slot_count = parsed_count
