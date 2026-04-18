@@ -90,6 +90,8 @@ def _normalize_fixed_option_specs(fixed_options: list[dict] | list[str] | set[st
                     "match_key": normalize_option_match_key(label),
                     "is_percentage": bool(entry.get("is_percentage", False)),
                     "value": int(entry["value"]) if isinstance(entry.get("value"), int) else None,
+                    "min_value": int(entry["min_value"]) if isinstance(entry.get("min_value"), int) else None,
+                    "max_value": int(entry["max_value"]) if isinstance(entry.get("max_value"), int) else None,
                     "value_label": str(entry.get("value_label", "")).strip(),
                 }
             )
@@ -107,6 +109,8 @@ def _normalize_fixed_option_specs(fixed_options: list[dict] | list[str] | set[st
                 "match_key": normalize_option_match_key(label),
                 "is_percentage": inferred_is_percentage,
                 "value": None,
+                "min_value": None,
+                "max_value": None,
                 "value_label": "",
             }
         )
@@ -161,11 +165,22 @@ def matched_option_text(item: dict, fixed_options: list[dict] | list[str] | set[
             continue
         expected_value = fixed_spec["value"]
         actual_value = _option_value_for_match(option)
-        if expected_value is not None and actual_value != expected_value:
+        min_value = fixed_spec["min_value"]
+        max_value = fixed_spec["max_value"]
+        if min_value is not None and actual_value is not None and actual_value < min_value:
+            continue
+        if max_value is not None and actual_value is not None and actual_value > max_value:
+            continue
+        if (
+            expected_value is not None
+            and min_value is None
+            and max_value is None
+            and actual_value != expected_value
+        ):
             continue
         option_label = fixed_spec["label"]
         value_label = fixed_spec["value_label"]
-        if value_label:
+        if expected_value is not None and actual_value == expected_value and value_label:
             matched_options.append(f"{option_label} {value_label}")
             continue
         matched_options.append(f"{option_label} {format_option_value(option)}")

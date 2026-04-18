@@ -175,6 +175,18 @@ def _option_value_label(option_key: str, value: int) -> str:
     return str(value)
 
 
+def _option_value_bounds(option_key: str, value: int) -> tuple[int, int]:
+    option_payload = OPTION_DEFINITIONS[option_key]
+    values = [int(candidate) for candidate in option_payload["values"]]
+    if value not in values:
+        resolved_value = int(value)
+        return resolved_value, resolved_value
+
+    selected_index = values.index(value)
+    inclusive_values = values[: selected_index + 1]
+    return min(inclusive_values), max(inclusive_values)
+
+
 def _monitor_option_label(option_key: str, value: int) -> str:
     option_label = str(OPTION_DEFINITIONS[option_key]["label"])
     if option_key == "none":
@@ -208,10 +220,13 @@ def monitor_fixed_options(custom_monitor: dict) -> list[dict]:
         if bool(option_payload.get("skip_query", False)):
             continue
         resolved_value = int(option_value)
+        min_value, max_value = _option_value_bounds(option_key, resolved_value)
         fixed_options.append(
             {
                 "label": str(option_payload["label"]),
                 "value": resolved_value,
+                "min_value": min_value,
+                "max_value": max_value,
                 "value_label": _option_value_label(option_key, resolved_value),
                 "is_percentage": bool(option_payload.get("display_percent", False)),
             }
@@ -232,12 +247,13 @@ def build_monitor_query(custom_monitor: dict) -> dict:
         option_payload = OPTION_DEFINITIONS[option_key]
         if bool(option_payload.get("skip_query", False)):
             continue
+        min_value, max_value = _option_value_bounds(option_key, int(option_value))
         etc_options.append(
             {
                 "FirstOption": 7,
                 "SecondOption": option_payload["second_option"],
-                "MinValue": int(option_value),
-                "MaxValue": int(option_value),
+                "MinValue": min_value,
+                "MaxValue": max_value,
             }
         )
 
