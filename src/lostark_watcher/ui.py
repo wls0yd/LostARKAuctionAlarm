@@ -551,6 +551,20 @@ class WatcherPopup:
             if row_state["value_3_var"].get() not in value_3_labels:
                 row_state["value_3_var"].set(value_3_labels[0])
 
+            option_toggle_mappings = (
+                (option_1_key, "option_1_inclusive_var", "option_1_inclusive_check"),
+                (option_2_key, "option_2_inclusive_var", "option_2_inclusive_check"),
+                (option_3_key, "option_3_inclusive_var", "option_3_inclusive_check"),
+            )
+            for option_key, var_key, widget_key in option_toggle_mappings:
+                if option_key == "none":
+                    row_state[var_key].set(False)
+                    row_state[widget_key].configure(state="disabled")
+                    continue
+                if row_state[widget_key].instate(("disabled",)):
+                    row_state[var_key].set(True)
+                row_state[widget_key].configure(state="normal")
+
             _ = selected_part
             quality_modes = quality_mode_labels()
             row_state["quality_mode_combo"]["values"] = quality_modes
@@ -591,12 +605,15 @@ class WatcherPopup:
                 value_1_var = tk.StringVar(value=option_value_label_for_value(monitor["option_1"], int(monitor["value_1"])))
                 value_2_var = tk.StringVar(value=option_value_label_for_value(monitor["option_2"], int(monitor["value_2"])))
                 value_3_var = tk.StringVar(value=option_value_label_for_value(monitor["option_3"], int(monitor["value_3"])))
+                option_1_inclusive_var = tk.BooleanVar(value=bool(monitor["option_1_inclusive"]))
+                option_2_inclusive_var = tk.BooleanVar(value=bool(monitor["option_2_inclusive"]))
+                option_3_inclusive_var = tk.BooleanVar(value=bool(monitor["option_3_inclusive"]))
                 monitor_quality_value = int(monitor["quality_value"])
                 quality_mode_var = tk.StringVar(value=quality_mode_for_value(monitor_quality_value))
                 quality_value_var = tk.StringVar(value="" if monitor_quality_value <= 0 else str(monitor_quality_value))
 
                 header_row = tk.Frame(section)
-                header_row.grid(row=0, column=0, columnspan=4, sticky="ew", pady=(0, 8))
+                header_row.grid(row=0, column=0, columnspan=5, sticky="ew", pady=(0, 8))
                 header_row.grid_columnconfigure(0, weight=1)
 
                 tk.Checkbutton(
@@ -628,6 +645,12 @@ class WatcherPopup:
                 tk.Label(section, text="옵션1 수치", font=("Malgun Gothic", 9)).grid(row=2, column=2, sticky="w", padx=(12, 0), pady=2)
                 value_1_combo = ttk.Combobox(section, textvariable=value_1_var, state="readonly", width=22)
                 value_1_combo.grid(row=2, column=3, sticky="w", pady=2)
+                option_1_inclusive_check = ttk.Checkbutton(
+                    section,
+                    text="이상 포함",
+                    variable=option_1_inclusive_var,
+                )
+                option_1_inclusive_check.grid(row=2, column=4, sticky="w", padx=(12, 0), pady=2)
 
                 tk.Label(section, text="옵션2", font=("Malgun Gothic", 9)).grid(row=3, column=0, sticky="w", pady=2)
                 option_2_combo = ttk.Combobox(section, textvariable=option_2_var, state="readonly", width=28)
@@ -635,6 +658,12 @@ class WatcherPopup:
                 tk.Label(section, text="옵션2 수치", font=("Malgun Gothic", 9)).grid(row=3, column=2, sticky="w", padx=(12, 0), pady=2)
                 value_2_combo = ttk.Combobox(section, textvariable=value_2_var, state="readonly", width=22)
                 value_2_combo.grid(row=3, column=3, sticky="w", pady=2)
+                option_2_inclusive_check = ttk.Checkbutton(
+                    section,
+                    text="이상 포함",
+                    variable=option_2_inclusive_var,
+                )
+                option_2_inclusive_check.grid(row=3, column=4, sticky="w", padx=(12, 0), pady=2)
 
                 tk.Label(section, text="옵션3", font=("Malgun Gothic", 9)).grid(row=4, column=0, sticky="w", pady=2)
                 option_3_combo = ttk.Combobox(section, textvariable=option_3_var, state="readonly", width=28)
@@ -642,6 +671,12 @@ class WatcherPopup:
                 tk.Label(section, text="옵션3 수치", font=("Malgun Gothic", 9)).grid(row=4, column=2, sticky="w", padx=(12, 0), pady=2)
                 value_3_combo = ttk.Combobox(section, textvariable=value_3_var, state="readonly", width=22)
                 value_3_combo.grid(row=4, column=3, sticky="w", pady=2)
+                option_3_inclusive_check = ttk.Checkbutton(
+                    section,
+                    text="이상 포함",
+                    variable=option_3_inclusive_var,
+                )
+                option_3_inclusive_check.grid(row=4, column=4, sticky="w", padx=(12, 0), pady=2)
 
                 tk.Label(section, text="품질수치", font=("Malgun Gothic", 9)).grid(row=5, column=0, sticky="w", pady=2)
                 quality_mode_combo = ttk.Combobox(section, textvariable=quality_mode_var, state="readonly", width=16)
@@ -671,6 +706,9 @@ class WatcherPopup:
                     "value_1_var": value_1_var,
                     "value_2_var": value_2_var,
                     "value_3_var": value_3_var,
+                    "option_1_inclusive_var": option_1_inclusive_var,
+                    "option_2_inclusive_var": option_2_inclusive_var,
+                    "option_3_inclusive_var": option_3_inclusive_var,
                     "quality_mode_var": quality_mode_var,
                     "quality_value_var": quality_value_var,
                     "option_1_combo": option_1_combo,
@@ -679,6 +717,9 @@ class WatcherPopup:
                     "value_1_combo": value_1_combo,
                     "value_2_combo": value_2_combo,
                     "value_3_combo": value_3_combo,
+                    "option_1_inclusive_check": option_1_inclusive_check,
+                    "option_2_inclusive_check": option_2_inclusive_check,
+                    "option_3_inclusive_check": option_3_inclusive_check,
                     "quality_mode_combo": quality_mode_combo,
                     "quality_value_entry": quality_value_entry,
                 }
@@ -701,6 +742,9 @@ class WatcherPopup:
                 "value_1": 0,
                 "value_2": 0,
                 "value_3": 0,
+                "option_1_inclusive": False,
+                "option_2_inclusive": False,
+                "option_3_inclusive": False,
                 "quality_value": 0,
             }
 
@@ -741,6 +785,9 @@ class WatcherPopup:
                         "value_1": option_value_from_label(option_1, row_state["value_1_var"].get()),
                         "value_2": option_value_from_label(option_2, row_state["value_2_var"].get()),
                         "value_3": option_value_from_label(option_3, row_state["value_3_var"].get()),
+                        "option_1_inclusive": option_1 != "none" and bool(row_state["option_1_inclusive_var"].get()),
+                        "option_2_inclusive": option_2 != "none" and bool(row_state["option_2_inclusive_var"].get()),
+                        "option_3_inclusive": option_3 != "none" and bool(row_state["option_3_inclusive_var"].get()),
                         "quality_value": quality_value,
                     }
                 )

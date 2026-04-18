@@ -39,6 +39,11 @@ def _default_quality_value(part_key: str) -> int:
     return int(QUALITY_VALUE_OPTIONS["none"]["value"])
 
 
+def _default_option_inclusive(part_key: str, option_key: str) -> bool:
+    _ = part_key
+    return option_key != "none"
+
+
 def default_custom_monitor(slot_index: int) -> dict:
     part_key = "necklace"
     option_1 = _default_option_key(part_key)
@@ -54,6 +59,9 @@ def default_custom_monitor(slot_index: int) -> dict:
         "value_1": _default_option_value(part_key, option_1),
         "value_2": _default_option_value(part_key, option_2),
         "value_3": _default_option_value(part_key, option_3),
+        "option_1_inclusive": _default_option_inclusive(part_key, option_1),
+        "option_2_inclusive": _default_option_inclusive(part_key, option_2),
+        "option_3_inclusive": _default_option_inclusive(part_key, option_3),
         "quality_value": _default_quality_value(part_key),
     }
 
@@ -94,6 +102,14 @@ def _sanitize_quality_value(part_key: str, raw_value: object) -> int:
     if isinstance(raw_value, int) and raw_value >= 0:
         return int(raw_value)
     return _default_quality_value(part_key)
+
+
+def _sanitize_option_inclusive(part_key: str, option_key: str, raw_value: object) -> bool:
+    if option_key == "none":
+        return False
+    if isinstance(raw_value, bool):
+        return raw_value
+    return _default_option_inclusive(part_key, option_key)
 
 
 def normalize_custom_monitor(raw_monitor: dict, fallback_id: str) -> dict:
@@ -145,6 +161,21 @@ def normalize_custom_monitor(raw_monitor: dict, fallback_id: str) -> dict:
             option_3,
             monitor.get("value_3"),
         ),
+        "option_1_inclusive": _sanitize_option_inclusive(
+            part_key,
+            option_1,
+            monitor.get("option_1_inclusive"),
+        ),
+        "option_2_inclusive": _sanitize_option_inclusive(
+            part_key,
+            option_2,
+            monitor.get("option_2_inclusive"),
+        ),
+        "option_3_inclusive": _sanitize_option_inclusive(
+            part_key,
+            option_3,
+            monitor.get("option_3_inclusive"),
+        ),
         "quality_value": _sanitize_quality_value(part_key, raw_quality_value),
     }
 
@@ -175,10 +206,14 @@ def _option_value_label(option_key: str, value: int) -> str:
     return str(value)
 
 
-def _option_value_bounds(option_key: str, value: int) -> tuple[int, int]:
+def _option_value_bounds(option_key: str, value: int, inclusive: bool) -> tuple[int, int]:
     option_payload = OPTION_DEFINITIONS[option_key]
     values = [int(candidate) for candidate in option_payload["values"]]
     if value not in values:
+        resolved_value = int(value)
+        return resolved_value, resolved_value
+
+    if not inclusive:
         resolved_value = int(value)
         return resolved_value, resolved_value
 
@@ -211,16 +246,16 @@ def monitor_label(custom_monitor: dict) -> str:
 def monitor_fixed_options(custom_monitor: dict) -> list[dict]:
     fixed_options: list[dict] = []
     option_filters = (
-        (custom_monitor["option_1"], custom_monitor["value_1"]),
-        (custom_monitor["option_2"], custom_monitor["value_2"]),
-        (custom_monitor["option_3"], custom_monitor["value_3"]),
+        (custom_monitor["option_1"], custom_monitor["value_1"], custom_monitor["option_1_inclusive"]),
+        (custom_monitor["option_2"], custom_monitor["value_2"], custom_monitor["option_2_inclusive"]),
+        (custom_monitor["option_3"], custom_monitor["value_3"], custom_monitor["option_3_inclusive"]),
     )
-    for option_key, option_value in option_filters:
+    for option_key, option_value, option_inclusive in option_filters:
         option_payload = OPTION_DEFINITIONS[option_key]
         if bool(option_payload.get("skip_query", False)):
             continue
         resolved_value = int(option_value)
-        min_value, max_value = _option_value_bounds(option_key, resolved_value)
+        min_value, max_value = _option_value_bounds(option_key, resolved_value, bool(option_inclusive))
         fixed_options.append(
             {
                 "label": str(option_payload["label"]),
@@ -238,16 +273,16 @@ def build_monitor_query(custom_monitor: dict) -> dict:
     part_key = custom_monitor["part"]
     category_code = PART_DEFINITIONS[part_key]["category_code"]
     option_filters = [
-        (custom_monitor["option_1"], custom_monitor["value_1"]),
-        (custom_monitor["option_2"], custom_monitor["value_2"]),
-        (custom_monitor["option_3"], custom_monitor["value_3"]),
+        (custom_monitor["option_1"], custom_monitor["value_1"], custom_monitor["option_1_inclusive"]),
+        (custom_monitor["option_2"], custom_monitor["value_2"], custom_monitor["option_2_inclusive"]),
+        (custom_monitor["option_3"], custom_monitor["value_3"], custom_monitor["option_3_inclusive"]),
     ]
     etc_options: list[dict] = []
-    for option_key, option_value in option_filters:
+    for option_key, option_value, option_inclusive in option_filters:
         option_payload = OPTION_DEFINITIONS[option_key]
         if bool(option_payload.get("skip_query", False)):
             continue
-        min_value, max_value = _option_value_bounds(option_key, int(option_value))
+        min_value, max_value = _option_value_bounds(option_key, int(option_value), bool(option_inclusive))
         etc_options.append(
             {
                 "FirstOption": 7,
