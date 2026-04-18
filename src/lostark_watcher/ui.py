@@ -595,9 +595,22 @@ class WatcherPopup:
                 quality_mode_var = tk.StringVar(value=quality_mode_for_value(monitor_quality_value))
                 quality_value_var = tk.StringVar(value="" if monitor_quality_value <= 0 else str(monitor_quality_value))
 
-                tk.Checkbutton(section, text="사용", variable=enabled_var, font=("Malgun Gothic", 9, "bold")).grid(
-                    row=0, column=0, columnspan=4, sticky="w", pady=(0, 8)
-                )
+                header_row = tk.Frame(section)
+                header_row.grid(row=0, column=0, columnspan=4, sticky="ew", pady=(0, 8))
+                header_row.grid_columnconfigure(0, weight=1)
+
+                tk.Checkbutton(
+                    header_row,
+                    text="사용",
+                    variable=enabled_var,
+                    font=("Malgun Gothic", 9, "bold"),
+                ).grid(row=0, column=0, sticky="w")
+                tk.Button(
+                    header_row,
+                    text="복사",
+                    width=8,
+                    command=lambda current_index=index: duplicate_slot(current_index),
+                ).grid(row=0, column=1, sticky="e")
 
                 tk.Label(section, text="부위", font=("Malgun Gothic", 9)).grid(row=1, column=0, sticky="w", pady=2)
                 part_combo = ttk.Combobox(
@@ -741,6 +754,38 @@ class WatcherPopup:
         def update_slot_buttons() -> None:
             decrease_slot_button.configure(state="disabled" if current_slot_count <= 1 else "normal")
             increase_slot_button.configure(state="disabled" if current_slot_count >= 10 else "normal")
+
+        def duplicate_slot(slot_index: int) -> None:
+            nonlocal current_slot_count, draft_monitors
+            if current_slot_count >= 10:
+                messagebox.showinfo(
+                    "복사 불가",
+                    "검색 슬롯은 최대 10개까지만 설정할 수 있습니다.",
+                )
+                return
+
+            resolved_monitors = collect_resolved_monitors(require_enabled=False)
+            if resolved_monitors is None:
+                return
+
+            if slot_index < 0 or slot_index >= len(resolved_monitors):
+                return
+
+            draft_monitors = merge_custom_monitors(resolved_monitors, current_slot_count)
+            draft_monitors.append(dict(resolved_monitors[slot_index]))
+
+            current_slot_count += 1
+            slot_count_var.set(str(current_slot_count))
+            self.monitor_slot_count = current_slot_count
+            self.custom_monitors = merge_custom_monitors(draft_monitors, self.monitor_slot_count)
+            save_app_settings(
+                self.token_var.get(),
+                self.interval_var.get(),
+                self.custom_monitors,
+                self.monitor_slot_count,
+            )
+            render_sections(current_slot_count)
+            update_slot_buttons()
 
         def adjust_slot_count(delta: int) -> None:
             nonlocal current_slot_count, draft_monitors
