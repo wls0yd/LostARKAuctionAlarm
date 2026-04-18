@@ -179,10 +179,6 @@ def matched_option_text(item: dict, fixed_options: list[dict] | list[str] | set[
         ):
             continue
         option_label = fixed_spec["label"]
-        value_label = fixed_spec["value_label"]
-        if expected_value is not None and actual_value == expected_value and value_label:
-            matched_options.append(f"{option_label} {value_label}")
-            continue
         matched_options.append(f"{option_label} {format_option_value(option)}")
 
     if not matched_options:
